@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Montserrat } from "next/font/google";
+import { Playfair_Display, Montserrat, Inter } from "next/font/google";
 import "./globals.css";
 
-import Navbar from "@/components/layout/nav";
-import Footer from "@/components/layout/footer";
-import Divider from "@/components/layout/divider";
+import { cn } from "@/lib/utils";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
 
 const playfairDisplay = Playfair_Display({
   variable: "--font-playfair-display",
@@ -42,7 +45,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={cn("font-sans", inter.variable)}>
       <body
         className={`relative ${montserrat.className} ${playfairDisplay.variable} antialiased`}
       >

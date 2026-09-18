@@ -1,0 +1,234 @@
+.playground {
+  min-height: 100vh;
+  padding: 28px;
+}
+
+.topbar {
+  max-width: 1500px;
+  margin: 0 auto 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  opacity: 0.58;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(1.7rem, 3vw, 2.5rem);
+  line-height: 1.1;
+}
+
+.subtle {
+  max-width: 680px;
+  margin: 9px 0 0;
+  color: #6b7280;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+button {
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #111827;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #f3f4f6;
+}
+
+button.danger {
+  color: #b91c1c;
+}
+
+.status {
+  font-size: 0.82rem;
+  margin-right: 4px;
+  color: #6b7280;
+}
+
+.workspace,
+.raw-panel {
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.panel,
+.raw-panel {
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(17, 24, 39, 0.06);
+}
+
+.panel-header {
+  min-height: 46px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.85rem;
+}
+
+.panel-header span {
+  color: #6b7280;
+}
+
+.editor-host {
+  min-height: 700px;
+}
+
+/* Crepe fills this host. Keep the test app from imposing a second editor shell. */
+.editor-host .milkdown {
+  min-height: 700px;
+}
+
+.preview {
+  min-height: 700px;
+  padding: 34px;
+  overflow: auto;
+}
+
+.prose {
+  color: #1f2937;
+  line-height: 1.75;
+}
+
+.prose > :first-child {
+  margin-top: 0;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  margin-top: 1.35em;
+  margin-bottom: 0.55em;
+  line-height: 1.2;
+}
+
+.prose h1 {
+  font-size: 2.15rem;
+}
+
+.prose h2 {
+  font-size: 1.55rem;
+}
+
+.prose h3 {
+  font-size: 1.25rem;
+}
+
+.prose p,
+.prose ul,
+.prose ol,
+.prose blockquote,
+.prose pre,
+.prose table {
+  margin: 0 0 1rem;
+}
+
+.prose a {
+  color: #2563eb;
+}
+
+.prose blockquote {
+  margin-left: 0;
+  padding-left: 16px;
+  border-left: 3px solid #d1d5db;
+  color: #6b7280;
+}
+
+.prose pre {
+  padding: 16px;
+  border-radius: 10px;
+  overflow: auto;
+  background: #111827;
+  color: #f9fafb;
+}
+
+.prose code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.prose :not(pre) > code {
+  padding: 0.15em 0.35em;
+  border-radius: 5px;
+  background: #f3f4f6;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.prose th,
+.prose td {
+  border: 1px solid #d1d5db;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.prose th {
+  background: #f9fafb;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+}
+
+.empty {
+  color: #9ca3af;
+}
+
+.raw-panel {
+  margin-top: 16px;
+}
+
+.raw-panel pre {
+  max-height: 260px;
+  overflow: auto;
+  margin: 0;
+  padding: 16px;
+  background: #0f172a;
+  color: #e5e7eb;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 1000px) {
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+}

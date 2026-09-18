@@ -1,9 +1,9 @@
-import MarkdownPlayground from "@/components/author/MarkdownEditor";
+import { Editor } from "@/components/author/Editor";
 
-export default function Editor() {
+export default function AuthorStudio() {
   return (
     <>
-      <MarkdownPlayground />
+      <Editor />
     </>
   );
 }

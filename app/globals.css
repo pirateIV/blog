@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+@variant dark (&:is(.dark *));
 @plugin '@tailwindcss/typography';
 
 @theme inline {
@@ -150,7 +150,7 @@ blockquote {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    /* @apply bg-background text-foreground; */
   }
   html {
     @apply font-sans;

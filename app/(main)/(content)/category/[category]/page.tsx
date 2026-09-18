@@ -39,7 +39,7 @@ export default async function BlogCategoryPage({ params }: PageProps) {
               width="366"
               height="203"
               sizes="(min-width: 1200px) max(min(max(100vw - 120px, 1px), 1220px) * 0.3, 1px), (max-width: 809.98px) max(min(max(100vw - 40px, 1px), 1220px), 1px), (min-width: 810px) and (max-width: 1199.98px) max(min(max(100vw - 56px, 1px), 1220px) * 0.3, 1px)"
-              className="size-full aspect-[366/203] object-cover border border-background-dark/30"
+              className="size-full aspect-366/203 object-cover border border-background-dark/30"
               alt={`${category} category image`}
               priority
             />

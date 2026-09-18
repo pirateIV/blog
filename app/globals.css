@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@variant dark (&:is(.dark *));
+@custom-variant dark (&:is(.dark *));
 @plugin '@tailwindcss/typography';
 
 @theme inline {
@@ -13,22 +13,23 @@
   --font-playfair-display: var(--font-playfair-display);
   --font-mono: var(--font-geist-mono);
 
-  --color-*: initial;
+  /* 🛑 REMOVED: --color-*: initial; (This was deleting red, blue, green, etc.) */
 
   --color-white: #ffffff;
-  --color-background-dark: #1c2522; /* deep dark gray, main app background */
-  --color-text-light: #ffffff; /* pure white, primary text on dark */
-  --color-accent-orange: #e38836; /* warm orange, brand/accent */
-  --color-text-light-muted: rgba(255, 255, 255, 0.8); /* subtle text on dark */
-  --color-surface-dark: #25211d; /* dark brownish-gray, card/surface */
-  --color-background-light: #f8f7f5; /* off-white, light background */
-  --color-overlay-dark: rgba(37, 33, 29, 0.2); /* transparent overlay/shadow */
+  --color-background-dark: #1c2522; 
+  --color-text-light: #ffffff; 
+  --color-accent-orange: #e38836; 
+  --color-text-light-muted: rgba(255, 255, 255, 0.8); 
+  --color-surface-dark: #25211d; 
+  --color-background-light: #f8f7f5; 
+  --color-overlay-dark: rgba(37, 33, 29, 0.2); 
 
-  --breakpoint-*: initial;
+  /* 🛑 REMOVED: --breakpoint-*: initial; */
 
   --breakpoint-sm: 375px;
   --breakpoint-md: 810px;
   --breakpoint-lg: 1199px;
+  
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -59,6 +60,7 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -145,14 +147,16 @@ blockquote {
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* ⚡️ CHANGED: Swapped problematic @apply items for direct CSS properties to prevent syntax compilation failure */
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    border-color: var(--border);
   }
   body {
-    /* @apply bg-background text-foreground; */
+    background-color: var(--background);
+    color: var(--foreground);
   }
   html {
-    @apply font-sans;
+    font-family: var(--font-sans);
   }
 }

@@ -45,9 +45,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("font-sans", inter.variable)}>
+    <html lang="en" className={cn("font-sans antialiased", inter.variable)}>
       <body
-        className={`relative ${montserrat.className} ${playfairDisplay.variable} antialiased`}
+        className={cn(
+          "relative",
+          montserrat.className,
+          playfairDisplay.variable,
+        )}
       >
         {children}
       </body>

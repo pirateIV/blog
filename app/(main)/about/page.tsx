@@ -10,8 +10,8 @@ export default function Page() {
       <div className="w-full max-w-304 mx-auto space-y-10">
         {/* Hero Banner Section */}
         <section className="relative">
-          <div className="aspect-[2/1] md:aspect-[3.6/1]" aria-hidden="true" />
-          <div className="absolute top-0 inset-x-0 aspect-[1.4/1] md:aspect-[2.5/1] lg:aspect-[2.7/1] overflow-hidden">
+          <div className="aspect-2/1 md:aspect-[3.6/1]" aria-hidden="true" />
+          <div className="absolute top-0 inset-x-0 aspect-[1.4/1] md:aspect-2.5/1 lg:aspect-[2.7/1] overflow-hidden">
             <Image
               src="/images/portrait.jpg"
               sizes="min(max(100vw - 120px, 1px), 1220px)"

@@ -62,7 +62,7 @@ export default async function Blog({
               src={image}
               width={600}
               height={400}
-              className="w-full object-cover aspect-[2/1]"
+              className="w-full object-cover aspect-2/1"
               priority
               alt={`Featured image for ${title}`}
             /> */}
@@ -76,10 +76,10 @@ export default async function Blog({
             <div className="w-full min-h-screen space-y-5 lg:w-[70%]">
               <article className="prose max-w-full text-sm">
                 {/* Article Header */}
-                <div className="!space-y-2.5">
+                <div className="space-y-2.5!">
                   <DateCategory variant="md" category={category} date={date} />
-                  <h1 className="text-[40px] !mt-0">{title}</h1>
-                  <p className="!mt-0">{description}</p>
+                  <h1 className="text-[40px] mt-0!">{title}</h1>
+                  <p className="mt-0!">{description}</p>
                   <Divider />
                 </div>
 

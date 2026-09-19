@@ -39,4 +39,4 @@ export type Draft = {
   updatedAt: string;
 };
 
-export type DraftSaveState = "loading" | "saved" | "saving";
+export type DraftSaveState = "loading" | "saved" | "saving" | "error" | "unsaved";

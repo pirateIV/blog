@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "../ui/button";
-import { Clipboard, Download, Edit, Eye, Moon, Sun, ClipboardCheck } from "lucide-react";
+import { Clipboard, Download, Edit, Eye, Moon, Sun, ClipboardCheck, Save } from "lucide-react";
 import copy from "copy-text-to-clipboard";
 
 import { useAppSelector } from "@/lib/hooks";
@@ -13,6 +13,8 @@ type EditorMenuBarProps = {
   showPreview: boolean;
   onTogglePreview: () => void;
   saveState: DraftSaveState;
+  hasUnsavedChanges: boolean;
+  onSave: () => void;
 };
 
 function slugify(title: string) {
@@ -40,15 +42,12 @@ export function EditorMenuBar({
   showPreview,
   onTogglePreview,
   saveState,
+  hasUnsavedChanges,
+  onSave,
 }: EditorMenuBarProps) {
   const draft = useAppSelector(getDrafts);
-
-  const [copied, setCopied] = React.useState(false);
-
-  // Local toggle so the button works out of the box. If the app already
-  // has a theme system (e.g. next-themes), swap this out for its
-  // useTheme() hook instead of tracking isDark here.
-  const [isDark, setIsDark] = React.useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isDark, setIsDark] = useState(false);
 
   function handleCopy() {
     copy(draft.content);
@@ -70,18 +69,44 @@ export function EditorMenuBar({
 
   const wordCount = getWordCount(draft.content);
 
+  const statusText =
+    saveState === "saving"
+      ? "Saving…"
+      : saveState === "error"
+      ? "Save failed"
+      : hasUnsavedChanges
+      ? "Unsaved changes"
+      : "Saved";
+
+  const statusColor =
+    saveState === "error"
+      ? "text-red-500"
+      : hasUnsavedChanges && saveState !== "saving"
+      ? "text-amber-500"
+      : "text-neutral-500";
+
   return (
     <div className="p-2 bg-neutral-100 dark:bg-neutral-900 w-full shrink-0 border-t border-sidebar flex items-center gap-1">
+      {/* Icon displays an action clue context: Edit layout while showing preview, Eye layout while writing */}
       <Button
         variant="ghost"
         onClick={onTogglePreview}
         title={showPreview ? "Back to editor" : "Show preview"}
       >
-        {showPreview ? <Eye /> : <Edit />}
+        {showPreview ? <Edit /> : <Eye />}
       </Button>
 
       <Button variant="ghost" onClick={handleCopy} title="Copy markdown">
         {copied ? <ClipboardCheck /> : <Clipboard />}
+      </Button>
+
+      <Button
+        variant="ghost"
+        onClick={onSave}
+        disabled={saveState === "saving"}
+        title="Save now"
+      >
+        <Save />
       </Button>
 
       <Button variant="ghost" onClick={handleDownload} title="Download .md">
@@ -92,9 +117,9 @@ export function EditorMenuBar({
         {isDark ? <Sun /> : <Moon />}
       </Button>
 
-      <div className="ml-auto flex items-center gap-3 text-xs text-neutral-500 pr-2">
-        <span>{wordCount} words</span>
-        <span className="capitalize">{saveState}</span>
+      <div className="ml-auto flex items-center gap-3 text-xs pr-2">
+        <span className="text-neutral-500">{wordCount} words</span>
+        <span className={statusColor}>{statusText}</span>
       </div>
     </div>
   );

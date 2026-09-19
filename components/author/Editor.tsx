@@ -3,6 +3,7 @@
 import React, { useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { Crepe } from "@milkdown/crepe";
+import "github-markdown-css/github-markdown-light.css";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
 
@@ -15,54 +16,80 @@ import {
 
 import { Draft, DraftSaveState } from "@/types";
 import { STORAGE_KEY } from "@/lib/draft";
-import { Button } from "../ui/button";
-import { Edit, Eye } from "lucide-react";
 import remarkGfm from "remark-gfm";
+import { useAppSelector, useAppDispatch } from "@/lib/hooks";
+import { getDrafts } from "@/lib/features/selectors";
+import {
+  setTitle,
+  setExcerpt,
+  setContent,
+  loadDraft,
+} from "@/lib/features/slices/draft";
+import { EditorMenuBar } from "./EditorMenuBar";
 
 function getDraftLink(title: string) {
   const link = title.trim().toLocaleLowerCase().replaceAll(" ", "-");
-  return "/ " + (link || "your-post-link-here");
-}
-
-function setInput(func: Function, key: keyof Draft) {
-  return (e: React.ChangeEvent<HTMLInputElement, HTMLInputElement>) =>
-    func(e.target.value.replace(/ {2,}/g, " "), key);
+  return "/" + (link || "your-post-link-here");
 }
 
 const EMPTY_DRAFT: Draft = {
-  title: "",
-  excerpt: "",
+  title: "My First Markdown Post",
+  excerpt:
+    "A quick tour of Markdown for bloggers — write once, format anywhere.",
   content:
-    "# Building a tiny Markdown authoring studio\n\nThis is a **realistic authoring workspace** rather than a demo textarea.\n\n## What this prototype can do\n\n- Edit Markdown with a rich visual editor\n- Preview the rendered article\n- Save drafts to \`localStorage\`\n- Track words and characters\n- Keep post metadata beside the editor\n\n> The important part is that Markdown remains the canonical content.\n\n| Feature | State |\n| --- | --- |\n| Rich editor | Working |\n| Live preview | Working |\n| Local draft | Working |\n| Backend | Not connected |\n\n\`\`\`js\nconst format = (markdown) => markdown.trim()\n\nconsole.log(format('# hello'))\n\`\`\`\n",
+    " You type simple symbols, and they turn into headings, lists, links, and more.\n\n## Why bloggers love it\n\n- It's readable even before it's rendered\n- It works in almost every blogging platform\n- You focus on *words*, not buttons\n- Your content stays portable forever\n\n---\n\n## The basics you'll use every day\n\n### Headings\n\nStart a line with `#` for a heading. More `#` means a smaller heading.\n\n```\n# Heading 1\n## Heading 2\n### Heading 3\n```\n\n### Emphasis\n\nWrap text in asterisks or underscores.\n\n```\n*italic*   **bold**   ***bold italic***\n```\n\n### Lists\n\nUse `-` for bullets and numbers for ordered lists.\n\n```\n- Coffee\n- Tea\n- Water\n\n1. Wake up\n2. Write\n3. Publish\n```\n\n### Links and images\n\n```\n[Visit my blog](https://example.com)\n![A sunset](/images/sunset.jpg)\n```\n\n### Quotes\n\nUse `>` to highlight a thought.\n\n> The best writing is rewriting.\n\n### Code\n\nWrap inline code in backticks, or use triple backticks for blocks.\n\n```js\nconst greet = (name) => `Hello, ${name}!`\nconsole.log(greet('blogger'))\n```\n\n### Tables\n\n| Symbol | Meaning |\n| --- | --- |\n| `#` | Heading |\n| `*` | Emphasis |\n| `>` | Quote |\n| `-` | List |\n\n---\n\n## Try it yourself\n\nDelete this text and start writing. Try adding a heading, a list, and a link. Preview it to see the result.\n\nHappy writing! ✍️\n",
   published: false,
-  tags: [],
+  tags: ["markdown", "writing", "beginners"],
   updatedAt: new Date().toISOString(),
 };
 
 export function Studio() {
+  const draft = useAppSelector(getDrafts);
+  const dispatch = useAppDispatch();
+
   const editorHost = React.useRef<HTMLDivElement>(null);
   const crepeRef = React.useRef<Crepe | null>(null);
 
-  const [draft, setDraft] = React.useState<Draft>(EMPTY_DRAFT);
   const [saveState, setSaveState] = React.useState<DraftSaveState>("loading");
   const [showPreview, setShowPreview] = React.useState<boolean>(false);
 
   useEffect(() => {
-    // STORAGE
     const raw = window.localStorage.getItem(STORAGE_KEY);
+
     if (raw) {
       try {
-        setDraft(JSON.parse(raw) as Draft);
+        dispatch(loadDraft(JSON.parse(raw) as Draft));
       } catch (error) {
         window.localStorage.removeItem(STORAGE_KEY);
+        dispatch(loadDraft(EMPTY_DRAFT));
       }
-      setSaveState(raw ? "saved" : "saved");
+    } else {
+      dispatch(loadDraft(EMPTY_DRAFT));
     }
-  }, []);
+
+    setSaveState("saved");
+  }, [dispatch]);
+
+  // TODO: this mirrors what was there before — reads from localStorage on
+  // mount, but nothing writes back. Worth deciding here: save on every
+  // dispatch, debounce it, or save on an explicit action — then dispatch
+  // setSaveState("saving" | "saved" | "error") around it.
+  // useEffect(() => {
+  //   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+  // }, [draft]);
 
   useEffect(() => {
     // === EDITOR
-    if (!editorHost.current || crepeRef.current) return;
+    // Wait for the draft to actually load from storage before seeding the
+    // editor, and only ever create it once — it stays mounted (hidden via
+    // CSS, not unmounted) when the user switches to preview, so undo
+    // history and cursor position survive the toggle. Crucially, this is
+    // seeded with draft.content ALONE, never the composed title+excerpt+
+    // content — feeding the composed string back in was what caused the
+    // title/excerpt to duplicate into the body on every toggle.
+    if (saveState === "loading" || !editorHost.current || crepeRef.current) {
+      return;
+    }
 
     const editor = new Crepe({
       root: editorHost.current,
@@ -73,43 +100,53 @@ export function Studio() {
 
     editor.on((listener) => {
       listener.markdownUpdated((_ctx, nextContent) => {
-        input(nextContent, "content");
+        dispatch(setContent(nextContent));
       });
     });
 
-    editor.create().catch((r) => {
-      console.log(r);
+    editor.create().catch((error) => {
+      console.error("Failed to initialize editor", error);
     });
 
     return () => {
       crepeRef.current = null;
       editor.destroy().catch(() => undefined);
     };
-  }, [showPreview]);
+  }, [saveState]);
 
-  function input(value: string, key: keyof Draft) {
-    setDraft((curr) => ({ ...curr, [key]: value }));
+  function getDraftContent(draft: Draft) {
+    const title = draft.title;
+    const excerpt = draft.excerpt;
+
+    return `# ${title}\n
+    ${excerpt}\n---\n
+    ${draft.content}`;
   }
 
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="flex h-svh flex-col overflow-hidden">
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1" />
           </div>
         </header>
 
-        <section id="content-area" className="px-8">
-          <div className="editor-column">
-            <div className="post-header font-montserrat space-y-3 w-full flex flex-col">
+        <section
+          id="content-area"
+          className="flex flex-1 min-h-0 flex-col overflow-y-auto"
+        >
+          <div className="editor-column shrink-0">
+            <div className="post-header px-8 font-montserrat space-y-3 w-full flex flex-col">
               <input
                 type="text"
                 value={draft.title}
                 className="text-4xl mb-4 outline-none font-semibold placeholder:text-neutral-300"
                 placeholder="Post title"
-                onChange={setInput(input, "title")}
+                onChange={(e) =>
+                  dispatch(setTitle(e.target.value.replace(/ {2,}/g, " ")))
+                }
               />
               <div className="text-xs" aria-label="Slug">
                 {getDraftLink(draft.title)}
@@ -119,32 +156,43 @@ export function Studio() {
                 value={draft.excerpt}
                 className="outline-none flex text-sm font-medium text-neutral-600"
                 placeholder="Write a short excerpt for the post..."
-                onChange={setInput(input, "excerpt")}
+                onChange={(e) =>
+                  dispatch(setExcerpt(e.target.value.replace(/ {2,}/g, " ")))
+                }
               />
             </div>
           </div>
 
-          <div id="workbench">
-            {showPreview ? (
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {draft.content}
+          <div id="workbench" className="flex-1 min-h-0 px-8">
+            <div
+              className={`markdown-body prose prose-neutral dark:prose-invert max-w-none w-full p-5 ${
+                showPreview ? "" : "hidden"
+              }`}
+            >
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  p: ({ node, ...props }) => (
+                    <p className="font-montserrat" {...props} />
+                  ),
+                }}
+              >
+                {getDraftContent(draft)}
               </ReactMarkdown>
-            ) : (
-              <div ref={editorHost} className="editor-host" />
-            )}
+            </div>
+
+            <div
+              ref={editorHost}
+              className={`editor-host h-full ${showPreview ? "hidden" : ""}`}
+            />
           </div>
         </section>
 
-        <section id="controls">
-          <div className="w-full p-2 bg-neutral-100 fixed bottom-0 border-t border-sidebar">
-            <Button
-              variant="ghost"
-              onClick={() => setShowPreview(!showPreview)}
-            >
-              {showPreview ? <Eye /> : <Edit />}
-            </Button>
-          </div>
-        </section>
+        <EditorMenuBar
+          showPreview={showPreview}
+          onTogglePreview={() => setShowPreview((prev) => !prev)}
+          saveState={saveState}
+        />
       </SidebarInset>
     </SidebarProvider>
   );

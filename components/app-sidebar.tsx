@@ -58,7 +58,7 @@ const data = {
       icon: PencilLine,
     },
     {
-      title: "Posts",
+      title: "Drafts",
       url: "#",
       icon: BotIcon,
     },

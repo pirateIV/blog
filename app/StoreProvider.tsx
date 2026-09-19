@@ -12,5 +12,7 @@ export default function StoreProvider({
   // Create the store instance the first time this renders
   const [store] = useState<AppStore>(makeStore);
 
+  console.log(store)
+
   return <Provider store={store}>{children}</Provider>;
 }

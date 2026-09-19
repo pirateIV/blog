@@ -3,6 +3,7 @@ import { Playfair_Display, Montserrat, Inter } from "next/font/google";
 import "./globals.css";
 
 import { cn } from "@/lib/utils";
+import StoreProvider from "./StoreProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -55,7 +56,11 @@ export default function RootLayout({
         playfairDisplay.variable,
       )}
     >
-      <body className={cn("relative")}>{children}</body>
+      <body className={cn("relative")}>
+        <StoreProvider>
+          {children}
+        </StoreProvider>
+      </body>
     </html>
   );
 }

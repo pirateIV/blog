@@ -45,16 +45,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("font-sans antialiased", inter.variable)}>
-      <body
-        className={cn(
-          "relative",
-          montserrat.className,
-          playfairDisplay.variable,
-        )}
-      >
-        {children}
-      </body>
+    <html
+      lang="en"
+      className={cn(
+        "font-sans antialiased",
+        inter.variable,
+        montserrat.className,
+        montserrat.variable,
+        playfairDisplay.variable,
+      )}
+    >
+      <body className={cn("relative")}>{children}</body>
     </html>
   );
 }

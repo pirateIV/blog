@@ -29,3 +29,14 @@ export type Post = {
   postDate: Date;
   description: string;
 };
+
+export type Draft = {
+  title: string;
+  excerpt: string;
+  content: string;
+  published: boolean;
+  tags: string[];
+  updatedAt: string;
+};
+
+export type DraftSaveState = "loading" | "saved" | "saving";

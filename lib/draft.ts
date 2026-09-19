@@ -1,4 +1,4 @@
-export const STORAGE_KEY = 'milkdown-author-studio-draft-v1'
+export const STORAGE_KEY = 'author-studio-draft-v1'
 
 export type Draft = {
   title: string

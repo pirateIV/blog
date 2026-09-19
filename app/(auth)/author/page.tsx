@@ -1,9 +1,9 @@
-import { Editor } from "@/components/author/Editor";
+import { Studio } from "@/components/author/Editor";
 
 export default function AuthorStudio() {
   return (
-    <>
-      <Editor />
-    </>
+    <div className="">
+      <Studio />
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { NextSeo } from "next-seo";
+import  NextSeo from "next-seo";
 
 type SeoProps = {
   title: string;

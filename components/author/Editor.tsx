@@ -20,6 +20,7 @@ import { useAppDispatch } from "@/lib/hooks";
 import { setTitle, setExcerpt, setContent } from "@/lib/features/slices/draft";
 import { EditorMenuBar } from "./EditorMenuBar";
 import { useDraftStorage } from "@/lib/hooks/useDraftStorage";
+import Divider from "../layout/divider";
 
 function getDraftLink(title: string) {
   const link = title.trim().toLocaleLowerCase().replaceAll(" ", "-");
@@ -33,7 +34,8 @@ export function Studio() {
   const [showPreview, setShowPreview] = useState<boolean>(false);
 
   // Consume our isolated storage and custom state management engine
-  const { draft, saveState, isHydrated, hasUnsavedChanges, onSaveNow } = useDraftStorage();
+  const { draft, saveState, isHydrated, hasUnsavedChanges, onSaveNow } =
+    useDraftStorage();
 
   // Initialize the text editor instance safely once data is hydrated
   useEffect(() => {
@@ -65,7 +67,7 @@ export function Studio() {
   }, [isHydrated, dispatch]);
 
   function getDraftContent(currentDraft: Draft) {
-    return `# ${currentDraft.title}\n\n${currentDraft.excerpt}\n\n---\n\n${currentDraft.content}`;
+    return `# ${currentDraft.title}\n${currentDraft.excerpt}\n\n---\n\n${currentDraft.content}`;
   }
 
   return (
@@ -78,15 +80,20 @@ export function Studio() {
           </div>
         </header>
 
-        <section id="content-area" className="flex flex-1 min-h-0 flex-col overflow-y-auto">
-          <div className="editor-column shrink-0">
+        <section
+          id="content-area"
+          className="flex flex-1 min-h-0 flex-col overflow-y-auto"
+        >
+          <div className="editor-column shrink-0 bg-sidebar">
             <div className="post-header px-8 font-montserrat space-y-3 w-full flex flex-col">
               <input
                 type="text"
                 value={draft.title}
-                className="text-4xl mb-4 outline-none font-semibold placeholder:text-neutral-300"
+                className="text-xl mb-4 outline-none font-semibold placeholder:text-neutral-300"
                 placeholder="Post title"
-                onChange={(e) => dispatch(setTitle(e.target.value.replace(/ {2,}/g, " ")))}
+                onChange={(e) =>
+                  dispatch(setTitle(e.target.value.replace(/ {2,}/g, " ")))
+                }
               />
               <div className="text-xs" aria-label="Slug">
                 {getDraftLink(draft.title)}
@@ -96,18 +103,28 @@ export function Studio() {
                 value={draft.excerpt}
                 className="outline-none flex text-sm font-medium text-neutral-600"
                 placeholder="Write a short excerpt for the post..."
-                onChange={(e) => dispatch(setExcerpt(e.target.value.replace(/ {2,}/g, " ")))}
+                onChange={(e) =>
+                  dispatch(setExcerpt(e.target.value.replace(/ {2,}/g, " ")))
+                }
               />
             </div>
           </div>
 
           <div id="workbench" className="flex-1 min-h-0 px-8">
-            <div className={`markdown-body prose prose-neutral dark:prose-invert max-w-none w-full p-5 ${showPreview ? "" : "hidden"}`}>
+            <div
+              className={`prose prose-neutral dark:prose-invert max-w-none w-full p-5 ${showPreview ? "" : "hidden"}`}
+            >
               {showPreview && (
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
-                    p: ({ node, ...props }) => <p className="font-montserrat" {...props} />
+                    p: ({ node, ...props }) => (
+                      <p className="font-montserrat text-sm" {...props} />
+                    ),
+                    li: ({ node, ...props }) => (
+                      <li className="font-montserrat text-sm" {...props} />
+                    ),
+                    hr: ({ node, ...props }) => <Divider {...props} />,
                   }}
                 >
                   {getDraftContent(draft)}
@@ -115,7 +132,10 @@ export function Studio() {
               )}
             </div>
 
-            <div ref={editorHost} className={`editor-host h-full ${showPreview ? "hidden" : ""}`} />
+            <div
+              ref={editorHost}
+              className={`editor-host h-full ${showPreview ? "hidden" : ""}`}
+            />
           </div>
         </section>
 

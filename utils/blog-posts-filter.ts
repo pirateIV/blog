@@ -1,4 +1,3 @@
-import { blogs } from "@/data/blog";
 import { Post, PostCategory } from "@/types";
 
 // interface Posts {

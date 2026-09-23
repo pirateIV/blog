@@ -8,7 +8,7 @@ import {
   hydrateDrafts,
   DraftItem,
 } from "@/lib/features/slices/draft";
-import { DraftSaveState, Draft } from "@/types";
+import type { DraftSaveState, Draft, PostCategory } from "@/types";
 import { STORAGE_KEY } from "@/lib/draft";
 
 type PersistedState = {
@@ -17,7 +17,8 @@ type PersistedState = {
 };
 
 // Seed content for the very first visit, when there is nothing in storage.
-const FIRST_RUN_TEMPLATE: Omit<DraftItem, "id"> = {
+// Publishing fields fall back to createBlankDraft's defaults.
+const FIRST_RUN_TEMPLATE: Partial<DraftItem> = {
   title: "My First Markdown Post",
   excerpt:
     "A quick tour of Markdown for bloggers — write once, format anywhere.",
@@ -43,8 +44,21 @@ function asTags(value: unknown): string[] {
     : [];
 }
 
+const CATEGORIES: PostCategory[] = ["travel", "lifestyle", "destination"];
+
+function asCategory(value: unknown): PostCategory {
+  return CATEGORIES.includes(value as PostCategory)
+    ? (value as PostCategory)
+    : "travel";
+}
+
+function asNullableString(value: unknown): string | null {
+  return typeof value === "string" && value ? value : null;
+}
+
 // Storage may hold drafts written by an older build (or by hand), so every
-// field is checked before it reaches the store.
+// field is checked before it reaches the store. Drafts saved before the
+// publishing fields existed simply get their defaults.
 function sanitizeDraft(value: unknown): DraftItem | null {
   if (!value || typeof value !== "object") return null;
 
@@ -59,6 +73,11 @@ function sanitizeDraft(value: unknown): DraftItem | null {
     published: raw.published === true,
     tags: asTags(raw.tags),
     updatedAt: asString(raw.updatedAt, new Date().toISOString()),
+    slug: asString(raw.slug),
+    category: asCategory(raw.category),
+    image: asString(raw.image),
+    publishedKey: asNullableString(raw.publishedKey),
+    publishedAt: asNullableString(raw.publishedAt),
   };
 }
 

@@ -1,17 +1,18 @@
-import { blogs } from "@/data/blog";
+import { getBlogs } from "@/data/blog";
 
 export function getPostSlugs(): string[] {
-  return blogs.map(({ slug }) => slug);
+  return getBlogs().map(({ slug }) => slug);
 }
 
-export function getMDXSlugKey(s: string) {
-  const match = blogs.find(({ slug }) => slug === s);
-  if (!match) throw new Error(`Not blog key found for slug: ${s}`);
-  return match.key;
+// Slug → .mdx filename. Returns null for URLs that aren't published posts
+// (mistyped links, posts deleted or renamed) so callers can 404 instead of
+// crashing the page with a thrown error.
+export function getMDXSlugKey(s: string): string | null {
+  return getBlogs().find(({ slug }) => slug === s)?.key ?? null;
 }
 
 export function getPostsByKey(keys: string[]) {
-  return blogs.filter(({ key }) => keys.includes(key));
+  return getBlogs().filter(({ key }) => keys.includes(key));
 }
 
 export function getCategory(key: string) {

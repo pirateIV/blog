@@ -1,6 +1,6 @@
 import React from "react";
 import { PostCategory } from "@/types";
-import { blogData } from "@/data/blog";
+import { getBlogData } from "@/data/blog";
 import { getRelatedPosts } from "@/utils/blog-posts-filter";
 import PostsSection from "./posts-section";
 
@@ -10,7 +10,7 @@ type RelatedPostsProps = {
 };
 
 export default function RelatedPosts({ category, slug }: RelatedPostsProps) {
-  const relatedPosts = getRelatedPosts(blogData, {
+  const relatedPosts = getRelatedPosts(getBlogData(), {
     category: category,
     slug: slug,
     limit: 4,

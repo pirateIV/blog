@@ -3,14 +3,10 @@ import PostCard from "../post-card";
 import { getCategory, getPostsByKey } from "@/helpers/posts";
 import { SidebarItem } from "../layout/sidebar/sidebar-item";
 
-const trendingPosts = getPostsByKey([
-  "travel-06",
-  "travel-07",
-  "lifestyle-02",
-  "destination-05",
-]);
+const TRENDING_KEYS = ["travel-06", "travel-07", "lifestyle-02", "destination-05"];
 
 export default function TrendingPosts() {
+  const trendingPosts = getPostsByKey(TRENDING_KEYS);
   return (
     <SidebarItem>
       <h3 className="text-xl font-semibold">Trending Posts</h3>

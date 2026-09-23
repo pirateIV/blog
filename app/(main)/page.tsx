@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { cx } from "@/utils/cx";
-import { blogs } from "@/data/blog";
+import { getBlogs } from "@/data/blog";
 import { getCategory } from "@/helpers/posts";
 import { getStories } from "@/utils/blog-posts-filter";
 import RecentPosts from "@/components/posts/recent-posts";
@@ -10,7 +10,7 @@ import ButtonLink from "@/components/button-link";
 import DateCategory from "@/components/date-category";
 
 export default function Home() {
-  const posts = getStories(blogs, { limit: 6 });
+  const posts = getStories(getBlogs(), { limit: 6 });
   return (
     <div className="max-w-305 mx-auto @container">
       {/* <PostsSection data={posts} /> */}

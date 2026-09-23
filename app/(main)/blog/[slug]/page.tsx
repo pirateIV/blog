@@ -15,11 +15,10 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = getPostBySlug(getMDXSlugKey(slug));
+  const key = getMDXSlugKey(slug);
+  if (!key) return {};
 
-  if (!post) return {};
-
-  const { title, description, image } = post.frontmatter;
+  const { title, description, image } = getPostBySlug(key).frontmatter;
 
   return {
     title,
@@ -41,11 +40,15 @@ export default async function Blog({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = getPostBySlug(getMDXSlugKey(slug));
+  const key = getMDXSlugKey(slug);
 
-  if (!post) {
+  // Unknown slug — typo, deleted, or renamed away — must be a real 404,
+  // not a 500 thrown out of the slug lookup.
+  if (!key) {
     return notFound();
   }
+
+  const post = getPostBySlug(key);
 
   const {
     content,

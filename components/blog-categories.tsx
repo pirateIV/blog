@@ -1,9 +1,11 @@
 import React from "react";
 import { SidebarItem } from "./layout/sidebar/sidebar-item";
 import ActiveLink from "./active-link";
-import { blogData } from "@/data/blog";
+import { descriptions } from "@/data/blog";
 
-const blogCategories = Object.keys(blogData);
+// Category names never change, so derive them from the static blurbs
+// rather than scanning every post file.
+const blogCategories = Object.keys(descriptions);
 
 export default function BlogCategories() {
   return (

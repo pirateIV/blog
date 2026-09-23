@@ -1,9 +1,10 @@
 import React from "react";
-import { blogs } from "@/data/blog";
+import { getBlogs } from "@/data/blog";
 import { getCategory } from "@/helpers/posts";
 import PostCard from "@/components/post-card";
 
 export default function Blogs() {
+  const blogs = getBlogs();
   return (
     <div className="flex items-center justify-center pt-7.5 px-5 pb-15 md:pt-10 md:px-7 md:pb-20 lg:pt-12.5 lg:px-15 lg:pb-25">
       <div className="max-w-305 w-full">

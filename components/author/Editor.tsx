@@ -1,61 +1,46 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
 import { Crepe } from "@milkdown/crepe";
+import { useCallback, useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import "github-markdown-css/github-markdown-light.css";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
 import { Plus, Trash2 } from "lucide-react";
-
+import remarkGfm from "remark-gfm";
 import { AppSidebar } from "@/components/app-sidebar";
+import { Button } from "@/components/ui/button";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
-import { Input } from "../ui/input";
-
-import remarkGfm from "remark-gfm";
-import { useAppDispatch, useAppSelector } from "@/lib/hooks";
 import {
   addDraft,
   createBlankDraft,
-  deleteDraft,
-  setTitle,
-  setExcerpt,
-  setContent,
-  setActiveDraftId,
-  setSearchValue,
   type DraftItem,
+  deleteDraft,
+  setActiveDraftId,
+  setContent,
+  setExcerpt,
+  setSearchValue,
+  setTitle,
 } from "@/lib/features/slices/draft";
-import { EditorMenuBar } from "./EditorMenuBar";
+import { useAppDispatch, useAppSelector } from "@/lib/hooks";
 import { useDraftStorage } from "@/lib/hooks/useDraftStorage";
+import { formatRelativeTime, slugify } from "@/lib/utils";
 import Divider from "../layout/divider";
+import { Input } from "../ui/input";
+import { EditorMenuBar } from "./EditorMenuBar";
+import { PublishPanel } from "./PublishPanel";
 
-function getDraftLink(title: string) {
-  const link = title.trim().toLocaleLowerCase().replaceAll(" ", "-");
-  return "/" + (link || "your-post-link-here");
-}
-
-function formatRelativeTime(iso: string): string {
-  const time = new Date(iso).getTime();
-  if (!Number.isFinite(time)) return "just now";
-
-  const seconds = Math.max(0, Math.floor((Date.now() - time) / 1000));
-  if (seconds < 60) return "just now";
-
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} min ago`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} hr ago`;
-
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
-
-  return new Date(time).toLocaleDateString();
+// The public URL this draft will live at — mirrors what /api/publish writes
+// into frontmatter.slug.
+function getDraftLink(currentDraft: DraftItem) {
+  const slug = currentDraft.slug.trim()
+    ? slugify(currentDraft.slug)
+    : slugify(currentDraft.title);
+  return `/blog/${slug || "your-post-link-here"}`;
 }
 
 // Preview document: title and excerpt sit above a rule, then the body.
@@ -92,7 +77,9 @@ export function Studio() {
   // Sidebar draft list: filtered by the search box, capped at 20 entries
   // so the list stays fast and scannable even with a large drafts store.
   const drafts = useAppSelector((state) => state.draftState.drafts);
-  const activeDraftId = useAppSelector((state) => state.draftState.activeDraftId);
+  const activeDraftId = useAppSelector(
+    (state) => state.draftState.activeDraftId,
+  );
   const searchValue = useAppSelector((state) => state.draftState.searchValue);
 
   // Mirror into refs: the editor effect reads these to build the instance
@@ -187,7 +174,7 @@ export function Studio() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <div className="w-70 h-full border-r p-2 border-neutral-300 bg-neutral-200 dark:border-neutral-800 dark:bg-neutral-950 flex flex-col gap-2">
+      <div className="flex h-full w-70 flex-col gap-2 border-neutral-300 border-r bg-neutral-200 p-2 dark:border-neutral-800 dark:bg-neutral-950">
         <div className="flex items-center gap-1.5">
           <Input
             className="bg-white"
@@ -207,7 +194,7 @@ export function Studio() {
         </div>
 
         {/* Draft List — capped at 20 visible entries */}
-        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1">
+        <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
           {visibleDrafts.map((d) => (
             <div
               key={d.id}
@@ -223,7 +210,7 @@ export function Studio() {
                 className="min-w-0 flex-1 px-2 py-1.5 text-left"
               >
                 <span className="flex items-center gap-1.5">
-                  <span className="truncate text-sm font-medium">
+                  <span className="truncate font-medium text-sm">
                     {d.title || "Untitled"}
                   </span>
                   {d.published && (
@@ -249,13 +236,13 @@ export function Studio() {
           ))}
 
           {visibleDrafts.length === 0 && (
-            <p className="text-xs text-neutral-500 px-2 py-1.5">
+            <p className="px-2 py-1.5 text-neutral-500 text-xs">
               No drafts found.
             </p>
           )}
 
           {drafts.length > 20 && (
-            <p className="text-xs text-neutral-500 px-2 py-1.5">
+            <p className="px-2 py-1.5 text-neutral-500 text-xs">
               Showing 20 of {drafts.length} — refine your search to see more.
             </p>
           )}
@@ -270,65 +257,78 @@ export function Studio() {
 
         <section
           id="content-area"
-          className="flex flex-1 min-h-0 flex-col overflow-y-auto"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <div className="editor-column shrink-0 bg-sidebar border-y border-neutral-300 dark:border-neutral-800">
-            <div className="post-header px-8 font-montserrat space-y-3 w-full flex flex-col">
-              <input
-                type="text"
-                value={draft.title}
-                className="text-xl mb-4 outline-none font-semibold "
-                placeholder="Post title"
-                onChange={(e) =>
-                  dispatch(setTitle(e.target.value.replace(/ {2,}/g, " ")))
-                }
-              />
-              <div className="text-xs" aria-label="Slug">
-                {getDraftLink(draft.title)}
+          {/* Editor column + preview scroll together; the publishing rail
+              stays fixed beside them. */}
+          <div className="flex min-h-0 flex-1">
+            <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+              <div className="editor-column shrink-0 border-neutral-300 border-y bg-sidebar dark:border-neutral-800">
+                <div className="post-header flex w-full flex-col space-y-3 px-8 font-montserrat">
+                  <input
+                    type="text"
+                    value={draft.title}
+                    className="mb-4 font-semibold text-xl outline-none"
+                    placeholder="Post title"
+                    onChange={(e) =>
+                      dispatch(setTitle(e.target.value.replace(/ {2,}/g, " ")))
+                    }
+                  />
+                  <div className="block text-neutral-500 text-xs">
+                    {getDraftLink(draft)}
+                  </div>
+                  <input
+                    type="text"
+                    value={draft.excerpt}
+                    className="flex font-medium text-neutral-600 text-sm outline-none"
+                    placeholder="Write a short excerpt for the post..."
+                    onChange={(e) =>
+                      dispatch(
+                        setExcerpt(e.target.value.replace(/ {2,}/g, " ")),
+                      )
+                    }
+                  />
+                </div>
               </div>
-              <input
-                type="text"
-                value={draft.excerpt}
-                className="outline-none flex text-sm font-medium text-neutral-600"
-                placeholder="Write a short excerpt for the post..."
-                onChange={(e) =>
-                  dispatch(setExcerpt(e.target.value.replace(/ {2,}/g, " ")))
-                }
-              />
-            </div>
-          </div>
 
-          <div id="workbench" className="flex-1 min-h-0 px-8">
-            <div
-              className={`prose prose-neutral dark:prose-invert max-w-none w-full p-5 ${showPreview ? "" : "hidden"}`}
-            >
-              {showPreview &&
-                (previewMarkdown ? (
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      p: ({ node, ...props }) => (
-                        <p className="font-montserrat text-sm" {...props} />
-                      ),
-                      li: ({ node, ...props }) => (
-                        <li className="font-montserrat text-sm" {...props} />
-                      ),
-                      hr: ({ node, ...props }) => <Divider {...props} />,
-                    }}
-                  >
-                    {previewMarkdown}
-                  </ReactMarkdown>
-                ) : (
-                  <p className="text-sm text-neutral-500">
-                    Nothing to preview yet — start writing in the editor.
-                  </p>
-                ))}
+              <div id="workbench" className="min-h-0 flex-1 px-8">
+                <div
+                  className={`prose prose-neutral dark:prose-invert w-full max-w-none p-5 ${showPreview ? "" : "hidden"}`}
+                >
+                  {showPreview &&
+                    (previewMarkdown ? (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          p: ({ node, ...props }) => (
+                            <p className="font-montserrat text-sm" {...props} />
+                          ),
+                          li: ({ node, ...props }) => (
+                            <li
+                              className="font-montserrat text-sm"
+                              {...props}
+                            />
+                          ),
+                          hr: ({ node, ...props }) => <Divider {...props} />,
+                        }}
+                      >
+                        {previewMarkdown}
+                      </ReactMarkdown>
+                    ) : (
+                      <p className="text-neutral-500 text-sm">
+                        Nothing to preview yet — start writing in the editor.
+                      </p>
+                    ))}
+                </div>
+
+                <div
+                  ref={editorHost}
+                  className={`editor-host h-full ${showPreview ? "hidden" : ""}`}
+                />
+              </div>
             </div>
 
-            <div
-              ref={editorHost}
-              className={`editor-host h-full ${showPreview ? "hidden" : ""}`}
-            />
+            <PublishPanel />
           </div>
         </section>
 

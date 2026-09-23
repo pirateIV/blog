@@ -2,7 +2,7 @@ import React from "react";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import Divider from "@/components/layout/divider";
-import { blogData, descriptions } from "@/data/blog";
+import { getBlogData, descriptions } from "@/data/blog";
 import PostCard from "@/components/post-card";
 import Sidebar from "@/components/layout/sidebar/sidebar";
 
@@ -13,6 +13,7 @@ interface PageProps {
 export default async function BlogCategoryPage({ params }: PageProps) {
   const { category } = await params;
 
+  const blogData = getBlogData();
   const blogCategoryData = blogData[category as keyof typeof blogData];
   const description = descriptions[category as keyof typeof blogData];
 

@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import type { PostCategory } from "@/types";
 
 export type DraftItem = {
   id: string;
@@ -8,6 +9,15 @@ export type DraftItem = {
   published: boolean;
   tags: string[];
   updatedAt: string;
+  /** URL segment. Empty means "derive it from the title". */
+  slug: string;
+  category: PostCategory;
+  /** Cover image path; the publish route falls back to /images/<category>.jpg */
+  image: string;
+  /** Key of the .mdx file this draft was last published to, for renames. */
+  publishedKey: string | null;
+  /** When it was first published; also becomes the post's frontmatter date. */
+  publishedAt: string | null;
 };
 
 type DraftState = {
@@ -35,6 +45,11 @@ export function createBlankDraft(overrides: Partial<DraftItem> = {}): DraftItem 
     published: false,
     tags: [],
     updatedAt: new Date().toISOString(),
+    slug: "",
+    category: "travel",
+    image: "",
+    publishedKey: null,
+    publishedAt: null,
     ...overrides,
   };
 }
@@ -134,6 +149,40 @@ export const draftSlice = createSlice({
       touch(draft);
     },
 
+    setSlug: (state, action: PayloadAction<string>) => {
+      const draft = getActiveDraft(state);
+      if (!draft) return;
+      draft.slug = action.payload;
+      touch(draft);
+    },
+
+    setCategory: (state, action: PayloadAction<PostCategory>) => {
+      const draft = getActiveDraft(state);
+      if (!draft) return;
+      draft.category = action.payload;
+      touch(draft);
+    },
+
+    setImage: (state, action: PayloadAction<string>) => {
+      const draft = getActiveDraft(state);
+      if (!draft) return;
+      draft.image = action.payload;
+      touch(draft);
+    },
+
+    // Both are written together after a successful publish, hence one action.
+    setPublishInfo: (
+      state,
+      action: PayloadAction<{ key: string; publishedAt: string }>,
+    ) => {
+      const draft = getActiveDraft(state);
+      if (!draft) return;
+      draft.publishedKey = action.payload.key;
+      if (!draft.publishedAt) draft.publishedAt = action.payload.publishedAt;
+      draft.published = true;
+      touch(draft);
+    },
+
     // Upserts a whole draft in one shot — used when hydrating from
     // localStorage (or eventually a backend) on mount, and makes it
     // the active draft.
@@ -177,14 +226,11 @@ export const draftSlice = createSlice({
     // Clears the fields of the active draft back to blank, without
     // removing it from the list.
     resetDraft: (state) => {
-      const draft = getActiveDraft(state);
-      if (!draft) return;
-      draft.title = "";
-      draft.excerpt = "";
-      draft.content = "";
-      draft.published = false;
-      draft.tags = [];
-      touch(draft);
+      const index = state.drafts.findIndex(
+        (draft) => draft.id === state.activeDraftId,
+      );
+      if (index === -1) return;
+      state.drafts[index] = createBlankDraft({ id: state.drafts[index].id });
     },
   },
 });
@@ -199,6 +245,10 @@ export const {
   setContent,
   setPublished,
   setTags,
+  setSlug,
+  setCategory,
+  setImage,
+  setPublishInfo,
   loadDraft,
   hydrateDrafts,
   resetDraft,

@@ -50,12 +50,12 @@ export function TeamSwitcher({
               {activeTeam.logo}
             </div>
             <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold">{activeTeam.name}</span>
+              <span className="truncate font-semibold font-montserrat">{activeTeam.name}</span>
               {/* <span className="truncate text-xs">{activeTeam.plan}</span> */}
             </div>
             <ChevronsUpDownIcon className="ml-auto" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent
+          {/* <DropdownMenuContent
             className="w-fit"
             align="start"
             side={isMobile ? "bottom" : "right"}
@@ -90,7 +90,7 @@ export function TeamSwitcher({
                 </div>
               </DropdownMenuItem>
             </DropdownMenuGroup>
-          </DropdownMenuContent>
+          </DropdownMenuContent> */}
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>

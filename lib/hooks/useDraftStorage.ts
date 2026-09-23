@@ -2,76 +2,172 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useAppSelector, useAppDispatch } from "@/lib/hooks";
-import { getDrafts } from "@/lib/features/selectors";
-import { loadDraft } from "@/lib/features/slices/draft";
-import { Draft, DraftSaveState } from "@/types";
+import {
+  selectActiveDraft,
+  createBlankDraft,
+  hydrateDrafts,
+  DraftItem,
+} from "@/lib/features/slices/draft";
+import { DraftSaveState, Draft } from "@/types";
 import { STORAGE_KEY } from "@/lib/draft";
 
-const EMPTY_DRAFT: Draft = {
+type PersistedState = {
+  drafts: DraftItem[];
+  activeDraftId: string;
+};
+
+// Seed content for the very first visit, when there is nothing in storage.
+const FIRST_RUN_TEMPLATE: Omit<DraftItem, "id"> = {
   title: "My First Markdown Post",
-  excerpt: "A quick tour of Markdown for bloggers — write once, format anywhere.",
-  content: "You type simple symbols, and they turn into headings, lists, links, and more...",
+  excerpt:
+    "A quick tour of Markdown for bloggers — write once, format anywhere.",
+  content:
+    "You type simple symbols, and they turn into headings, lists, links, and more...",
   published: false,
   tags: ["markdown", "writing", "beginners"],
   updatedAt: new Date().toISOString(),
 };
 
+// A draft that satisfies the type checker if selectActiveDraft ever returns
+// null. In practice the slice always keeps at least one draft in its list,
+// so this should never actually be what the user sees.
+const FALLBACK_DRAFT: DraftItem = createBlankDraft();
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asTags(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((tag): tag is string => typeof tag === "string")
+    : [];
+}
+
+// Storage may hold drafts written by an older build (or by hand), so every
+// field is checked before it reaches the store.
+function sanitizeDraft(value: unknown): DraftItem | null {
+  if (!value || typeof value !== "object") return null;
+
+  const raw = value as Partial<DraftItem>;
+  if (typeof raw.id !== "string" || !raw.id) return null;
+
+  return {
+    id: raw.id,
+    title: asString(raw.title),
+    excerpt: asString(raw.excerpt),
+    content: asString(raw.content),
+    published: raw.published === true,
+    tags: asTags(raw.tags),
+    updatedAt: asString(raw.updatedAt, new Date().toISOString()),
+  };
+}
+
+// Reads storage, returning null when it is missing or unusable (in which
+// case the caller starts from a template). Handles both today's
+// `{ drafts, activeDraftId }` payload and the pre-multi-draft shape that
+// stored one draft object directly, so existing work is migrated instead
+// of being thrown away.
+function readPersistedState(): PersistedState | null {
+  const raw = window.localStorage.getItem(STORAGE_KEY);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+
+    if (parsed && typeof parsed === "object" && "drafts" in parsed) {
+      const source = parsed as PersistedState;
+      if (!Array.isArray(source.drafts)) throw new Error("Malformed drafts");
+
+      const drafts = source.drafts
+        .map(sanitizeDraft)
+        .filter((draft): draft is DraftItem => draft !== null);
+
+      if (drafts.length === 0) throw new Error("Empty drafts array");
+
+      const activeDraftId = drafts.some(
+        (draft) => draft.id === source.activeDraftId,
+      )
+        ? source.activeDraftId
+        : drafts[0].id;
+
+      return { drafts, activeDraftId };
+    }
+
+    // Legacy single-draft payload: { title, slug, excerpt, content, ... }.
+    const legacy = parsed as Partial<Draft>;
+    if (
+      typeof legacy.title === "string" &&
+      typeof legacy.content === "string"
+    ) {
+      const draft = createBlankDraft({
+        title: legacy.title,
+        excerpt: asString(legacy.excerpt),
+        content: legacy.content,
+        published: legacy.published === true,
+        tags: asTags(legacy.tags),
+        updatedAt: asString(legacy.updatedAt),
+      });
+      return { drafts: [draft], activeDraftId: draft.id };
+    }
+
+    throw new Error("Unrecognized draft payload");
+  } catch (error) {
+    console.error("Discarding unreadable draft storage", error);
+    window.localStorage.removeItem(STORAGE_KEY);
+    return null;
+  }
+}
+
 // Helper function to normalize text formatting quirks from the Milkdown rendering engine
 function normalizeMarkdown(text: string): string {
   return text
-    .replace(/\r\n/g, "\n")      // Normalize line endings
-    .replace(/\s+\n/g, "\n")      // Strip trailing whitespace at the end of lines
-    .trim();                     // Remove wrapping gaps
+    .replace(/\r\n/g, "\n") // Normalize line endings
+    .replace(/\s+\n/g, "\n") // Strip trailing whitespace at the end of lines
+    .trim(); // Remove wrapping gaps
 }
 
 export function useDraftStorage() {
-  const draft = useAppSelector(getDrafts);
+  const draft = useAppSelector(selectActiveDraft) ?? FALLBACK_DRAFT;
+  const drafts = useAppSelector((state) => state.draftState.drafts);
+  const activeDraftId = useAppSelector((state) => state.draftState.activeDraftId);
   const dispatch = useAppDispatch();
 
   const hasLoadedRef = useRef(false);
   const lastSavedRef = useRef<string | null>(null);
-  const draftRef = useRef(draft);
-  
+  const stateRef = useRef<PersistedState>({ drafts, activeDraftId });
+
   // Synchronously update the ref to keep timers clear of closure bugs
-  draftRef.current = draft;
+  stateRef.current = { drafts, activeDraftId };
 
   const [saveState, setSaveState] = useState<DraftSaveState>("loading");
   const [isHydrated, setIsHydrated] = useState<boolean>(false);
 
-  // 1. Initial Storage Hydration on Mount
+  // 1. Initial Storage Hydration on Mount — restores the whole drafts
+  // list (up to whatever was persisted), not just the active one.
   useEffect(() => {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    let loaded: Draft;
+    const restored =
+      readPersistedState() ??
+      (() => {
+        const fresh = createBlankDraft(FIRST_RUN_TEMPLATE);
+        return { drafts: [fresh], activeDraftId: fresh.id };
+      })();
 
-    if (raw) {
-      try {
-        loaded = JSON.parse(raw) as Draft;
-        dispatch(loadDraft(loaded));
-      } catch (error) {
-        window.localStorage.removeItem(STORAGE_KEY);
-        loaded = EMPTY_DRAFT;
-        dispatch(loadDraft(loaded));
-      }
-    } else {
-      loaded = EMPTY_DRAFT;
-      dispatch(loadDraft(loaded));
-    }
+    // Refresh the ref here, not just on the next render: any flush that
+    // runs before React re-renders (StrictMode's immediate unmount pass)
+    // must see the restored data instead of the slice's placeholder.
+    stateRef.current = restored;
+    dispatch(hydrateDrafts(restored));
 
-    lastSavedRef.current = JSON.stringify(loaded);
+    lastSavedRef.current = JSON.stringify(restored);
     setSaveState("saved");
     hasLoadedRef.current = true;
     setIsHydrated(true);
   }, [dispatch]);
 
-  // 2. Persistent Save Functionality
-  const persistDraft = useCallback((toSave: Draft): boolean => {
-    // Add current time right before saving to disk
-    const draftWithTimestamp = {
-      ...toSave,
-      updatedAt: new Date().toISOString(),
-    };
-    
-    const serialized = JSON.stringify(draftWithTimestamp);
+  // 2. Persistent Save Functionality — saves the entire drafts list
+  // plus which one is active.
+  const persistDraft = useCallback((toSave: PersistedState): boolean => {
+    const serialized = JSON.stringify(toSave);
 
     if (serialized === lastSavedRef.current) {
       return true;
@@ -94,7 +190,7 @@ export function useDraftStorage() {
   useEffect(() => {
     const intervalId = setInterval(() => {
       if (!hasLoadedRef.current) return;
-      persistDraft(draftRef.current);
+      persistDraft(stateRef.current);
     }, 30_000);
 
     return () => clearInterval(intervalId);
@@ -103,7 +199,7 @@ export function useDraftStorage() {
   // 4. Force Window Unload Synchronous Flushes
   useEffect(() => {
     function handleBeforeUnload(event: BeforeUnloadEvent) {
-      const saved = persistDraft(draftRef.current);
+      const saved = persistDraft(stateRef.current);
       if (!saved) {
         event.preventDefault();
         event.returnValue = true;
@@ -114,32 +210,67 @@ export function useDraftStorage() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [persistDraft]);
 
-  const handleSaveNow = useCallback(() => {
-    persistDraft(draftRef.current);
+  // 5. Flush as soon as the draft list changes shape — creating, deleting
+  // or switching drafts. Field edits stay on the 30s cadence above; these
+  // structural changes are rare and losing them would be costly (a deleted
+  // or newly opened draft surviving a crash).
+  // `isHydrated` gates the first run: until hydration has re-rendered, the
+  // ref still holds the slice's placeholder state, which would otherwise
+  // overwrite whatever storage held. activeDraftId and drafts.length are
+  // read deliberately — they are what triggers this effect, and the guards
+  // below protect the "always one active draft" invariant. persistDraft
+  // itself no-ops when nothing changed.
+  useEffect(() => {
+    if (!isHydrated) return;
+    if (!activeDraftId || drafts.length === 0) return;
+    persistDraft(stateRef.current);
+  }, [isHydrated, activeDraftId, drafts.length, persistDraft]);
+
+  // Flush when the editor unmounts (client-side navigation away).
+  useEffect(() => {
+    return () => {
+      if (!hasLoadedRef.current) return;
+      persistDraft(stateRef.current);
+    };
   }, [persistDraft]);
 
-  // CRITICAL FIX: Explicitly compare content fields and skip dynamic dynamic timestamp checks
+  const handleSaveNow = useCallback(() => {
+    persistDraft(stateRef.current);
+  }, [persistDraft]);
+
+  // CRITICAL FIX: Explicitly compare content fields and skip dynamic dynamic timestamp checks.
+  // Compares every draft by id against its last-saved counterpart, plus which
+  // draft is active, so switching drafts or editing any one of them (not
+  // just the active one) is reflected here.
   const hasUnsavedChanges = useMemo(() => {
     if (!isHydrated || !lastSavedRef.current) return false;
-    
+
     try {
-      const parsedLastSaved = JSON.parse(lastSavedRef.current) as Draft;
-      
-      return (
-        draft.title !== parsedLastSaved.title ||
-        draft.excerpt !== parsedLastSaved.excerpt ||
-        draft.published !== parsedLastSaved.published ||
-        JSON.stringify(draft.tags) !== JSON.stringify(parsedLastSaved.tags) ||
-        normalizeMarkdown(draft.content) !== normalizeMarkdown(parsedLastSaved.content)
-      );
+      const parsedLastSaved = JSON.parse(lastSavedRef.current) as PersistedState;
+
+      if (parsedLastSaved.activeDraftId !== activeDraftId) return true;
+      if (parsedLastSaved.drafts.length !== drafts.length) return true;
+
+      return drafts.some((current) => {
+        const saved = parsedLastSaved.drafts.find((d) => d.id === current.id);
+        if (!saved) return true;
+
+        return (
+          current.title !== saved.title ||
+          current.excerpt !== saved.excerpt ||
+          current.published !== saved.published ||
+          JSON.stringify(current.tags) !== JSON.stringify(saved.tags) ||
+          normalizeMarkdown(current.content) !== normalizeMarkdown(saved.content)
+        );
+      });
     } catch {
-      return JSON.stringify(draft) !== lastSavedRef.current;
+      return true;
     }
     // saveState is included even though it isn't read in the body: persistDraft
     // mutates lastSavedRef (a plain ref, invisible to useMemo) exactly when it
     // sets saveState to "saved"/"error". Without this, a completed autosave or
     // manual save doesn't get reflected here until the next edit touches draft.
-  }, [draft, isHydrated, saveState]);
+  }, [drafts, activeDraftId, isHydrated, saveState]);
 
   return {
     draft,

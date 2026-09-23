@@ -6,7 +6,7 @@ import { Clipboard, Download, Edit, Eye, Moon, Sun, ClipboardCheck, Save } from 
 import copy from "copy-text-to-clipboard";
 
 import { useAppSelector } from "@/lib/hooks";
-import { getDrafts } from "@/lib/features/selectors";
+import { selectActiveDraft } from "@/lib/features/slices/draft";
 import { DraftSaveState } from "@/types";
 
 type EditorMenuBarProps = {
@@ -45,18 +45,20 @@ export function EditorMenuBar({
   hasUnsavedChanges,
   onSave,
 }: EditorMenuBarProps) {
-  const draft = useAppSelector(getDrafts);
+  // Read straight from the store: this component must not mount a second
+  // useDraftStorage instance (that would add its own timers and listeners).
+  const draft = useAppSelector(selectActiveDraft);
   const [copied, setCopied] = useState(false);
   const [isDark, setIsDark] = useState(false);
 
   function handleCopy() {
-    copy(draft.content);
+    copy(draft?.content ?? "");
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
 
   function handleDownload() {
-    downloadMarkdown(`${slugify(draft.title)}.md`, draft.content);
+    downloadMarkdown(`${slugify(draft?.title ?? "")}.md`, draft?.content ?? "");
   }
 
   function handleThemeToggle() {
@@ -67,7 +69,7 @@ export function EditorMenuBar({
     });
   }
 
-  const wordCount = getWordCount(draft.content);
+  const wordCount = getWordCount(draft?.content ?? "");
 
   const statusText =
     saveState === "saving"

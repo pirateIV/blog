@@ -20,7 +20,7 @@ export function NavMain({
 }) {
   return (
     <SidebarGroup className="mt-4">
-      <SidebarGroupLabel>WORKSPACE</SidebarGroupLabel>
+      <SidebarGroupLabel className="font-montserrat">WORKSPACE</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => (
           <SidebarMenuItem key={item.title} className="group/collapsible py-1">
@@ -28,7 +28,7 @@ export function NavMain({
               <span className="opacity-50">
                 <item.icon />
               </span>
-              <span className="font-medium text-base data-active:text-neutral-400">
+              <span className="font-semibold data-active:text-neutral-400">
                 {item.title}
               </span>
               {/* <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" /> */}

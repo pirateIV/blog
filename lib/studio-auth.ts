@@ -1,4 +1,4 @@
-// Shared authentication for the author studio: /author, /dashboard,
+// Shared authentication for the author studio: /studio, /dashboard,
 // /api/publish and /api/drafts all sit behind one gate.
 //
 // Design:
@@ -136,13 +136,13 @@ export async function isAuthorizedApi(request: Request): Promise<boolean> {
  * so `?next=//evil.example` can't turn the login into an open redirect.
  */
 export function sanitizeNextPath(value: unknown): string {
-  if (typeof value !== "string") return "/author";
+  if (typeof value !== "string") return "/studio";
   if (
     !value.startsWith("/") ||
     value.startsWith("//") ||
     value.startsWith("/\\")
   ) {
-    return "/author";
+    return "/studio";
   }
   return value;
 }

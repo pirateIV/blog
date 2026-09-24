@@ -8,13 +8,7 @@ import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
 import { Plus, Trash2 } from "lucide-react";
 import remarkGfm from "remark-gfm";
-import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
 import {
   addDraft,
   createBlankDraft,
@@ -31,8 +25,10 @@ import { useDraftStorage } from "@/lib/hooks/useDraftStorage";
 import { formatRelativeTime, slugify } from "@/lib/utils";
 import Divider from "../layout/divider";
 import { Input } from "../ui/input";
+import { AccountPanel } from "./AccountPanel";
 import { EditorMenuBar } from "./EditorMenuBar";
 import { PublishPanel } from "./PublishPanel";
+import { ShortcutsHelp } from "./ShortcutsHelp";
 
 // The public URL this draft will live at — mirrors what /api/publish writes
 // into frontmatter.slug.
@@ -69,6 +65,10 @@ export function Studio() {
   const crepeDraftIdRef = useRef<string | null>(null);
   const activeDraftIdRef = useRef<string>("");
   const [showPreview, setShowPreview] = useState<boolean>(false);
+  // Studio chrome: the shortcuts dialog, and a handle on the draft search
+  // box so ⌘/Ctrl+K can focus it from anywhere.
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Consume our isolated storage and custom state management engine
   const { draft, saveState, isHydrated, hasUnsavedChanges, onSaveNow } =
@@ -157,6 +157,47 @@ export function Studio() {
   // Tear the editor down when the studio unmounts.
   useEffect(() => destroyEditor, [destroyEditor]);
 
+  // Studio-wide keyboard shortcuts. ⌘/Ctrl+S fires even mid-sentence —
+  // that instinct is exactly when you want it, and preventDefault beats
+  // the browser's save dialog. Everything else stays out of the way of
+  // typing (ignored while an input/editor has focus).
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const saveCombo =
+        (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s";
+      if (saveCombo) {
+        event.preventDefault();
+        onSaveNow();
+        return;
+      }
+
+      if (showShortcuts && event.key === "Escape") {
+        setShowShortcuts(false);
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      const typing = target?.closest(
+        "input, textarea, select, [contenteditable='true'], [contenteditable='']",
+      );
+      if (typing) return;
+
+      const searchCombo =
+        (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
+      if (searchCombo) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      if (event.key === "?") setShowShortcuts(true);
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onSaveNow, showShortcuts]);
+
   function handleNewDraft() {
     dispatch(addDraft(createBlankDraft()));
     // A new draft is meant to be written in, so leave preview mode.
@@ -172,11 +213,21 @@ export function Studio() {
   const previewMarkdown = getDraftContent(draft);
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
+    <div className="flex h-svh w-full overflow-hidden">
       <div className="flex h-full w-70 flex-col gap-2 border-neutral-300 border-r bg-neutral-200 p-2 dark:border-neutral-800 dark:bg-neutral-950">
+        <div className="flex items-center justify-between px-1">
+          <span className="font-semibold text-sm">Drafts</span>
+          <span
+            className="text-[11px] text-neutral-500"
+            title={`${drafts.length} saved in this browser`}
+          >
+            {drafts.length}
+          </span>
+        </div>
+
         <div className="flex items-center gap-1.5">
           <Input
+            ref={searchInputRef}
             className="bg-white"
             placeholder="Search"
             value={searchValue}
@@ -241,7 +292,9 @@ export function Studio() {
 
           {visibleDrafts.length === 0 && (
             <p className="px-2 py-1.5 text-neutral-500 text-xs">
-              No drafts found.
+              {drafts.length === 0
+                ? "No drafts yet — press + to start your first one."
+                : `No drafts match “${searchValue}”.`}
             </p>
           )}
 
@@ -251,14 +304,12 @@ export function Studio() {
             </p>
           )}
         </div>
-      </div>
-      <SidebarInset className="flex h-svh flex-col overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-          </div>
-        </header>
 
+        {/* Account: rotate the studio password or sign out. */}
+        <AccountPanel />
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <section
           id="content-area"
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
@@ -342,8 +393,13 @@ export function Studio() {
           saveState={saveState}
           hasUnsavedChanges={hasUnsavedChanges}
           onSave={onSaveNow}
+          onShowShortcuts={() => setShowShortcuts(true)}
         />
-      </SidebarInset>
-    </SidebarProvider>
+      </div>
+
+      {showShortcuts && (
+        <ShortcutsHelp onClose={() => setShowShortcuts(false)} />
+      )}
+    </div>
   );
 }

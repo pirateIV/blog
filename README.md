@@ -31,7 +31,7 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Publishing storage
 
-The author studio (`/author`) writes posts through `/api/publish`, and the
+The author studio (`/studio`) writes posts through `/api/publish`, and the
 write backend depends on where the app runs:
 
 - **Development** — no configuration: posts and cover uploads are written
@@ -56,6 +56,50 @@ write backend depends on where the app runs:
   Local draft backups (`.studio/drafts.json`) need a writable disk too —
   on Vercel the studio falls back to browser `localStorage`, which is
   where drafts are restored from anyway.
+
+## Studio password
+
+Login accepts the **active** studio password:
+
+1. **Default** — `STUDIO_PASSWORD` from the environment. This is the value
+   you hand to your author.
+2. **Changed** — once the author uses *Change password* (bottom of the
+   studio sidebar at `/studio`), the new value is stored **hashed** in
+   `.studio/auth.json` and overrides the default. On Vercel that file is
+   committed through the GitHub API like any other studio write, and login
+   re-reads it on every attempt — a change takes effect within seconds.
+
+**Secret door:** on any public page, type `studio` (just the letters) and
+the browser jumps straight to `/studio`. Inputs are ignored, nothing
+appears on screen — knowing the sequence is the whole “key”. It only
+routes; the password gate still guards the studio itself.
+
+Details worth knowing:
+
+- The hash is scrypt-salted and peppered with `STUDIO_PASSWORD`, so a
+  public repo never exposes anything crackable. **Keep `STUDIO_PASSWORD`
+  set** — it also signs session cookies.
+- Changing the password does **not** sign anyone out (cookies are keyed to
+  the env secret, not to the login value).
+- **Reset to the default:** delete `.studio/auth.json` — locally for dev,
+  and in the repo for production
+  (`gh api -X DELETE repos/<owner>/<repo>/contents/.studio/auth.json`
+  with the file's `sha`), then redeploy.
+- In dev, running with `GITHUB_*` set opts you into the same shared
+  credential store your deployment uses; without those vars, dev password
+  changes stay on your machine.
+
+## Discoverability
+
+- `app/sitemap.ts` → `/sitemap.xml` — home, blog, category pages and every
+  published post, re-read from `content/` per request.
+- `app/robots.ts` → `/robots.txt` — allows the public site, keeps crawlers
+  out of the studio and API, points at the sitemap.
+- `app/feed.xml/route.ts` → `/feed.xml` — RSS 2.0 of all published posts
+  (also advertised via `<link rel="alternate">` in the layout metadata).
+
+All three resolve URLs against `NEXT_PUBLIC_SITE_URL` (falling back to the
+template demo origin), the same base as `metadataBase` in `app/layout.tsx`.
 
 ## Deploy on Vercel
 

@@ -28,6 +28,9 @@ export default async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/studio/:path*",
+    // Legacy studio URLs: gated here too, then bounced to /studio by the
+    // session pass (or the next.config redirect once signed in).
     "/author/:path*",
     "/dashboard/:path*",
     "/api/publish",

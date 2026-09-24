@@ -147,6 +147,10 @@ function localPath(filePath: string): string {
   if (clean.startsWith("public/images/uploads/")) {
     return path.join(UPLOADS_DIR, clean.slice("public/images/uploads/".length));
   }
+  // Exactly one file — the studio password verifier (never its plaintext).
+  if (clean === ".studio/auth.json") {
+    return path.join(process.cwd(), ".studio", "auth.json");
+  }
   throw new StorageError(`Unsafe storage path: ${filePath}`, 400);
 }
 

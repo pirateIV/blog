@@ -98,6 +98,12 @@ export default async function StudioLogin({
               </p>
             )}
 
+            {params.error === "storage" && (
+              <p className="text-red-500 text-xs">
+                Couldn&apos;t reach the password store — try again in a minute.
+              </p>
+            )}
+
             <button
               type="submit"
               className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 font-medium text-primary-foreground text-sm transition-all hover:bg-primary/80 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"

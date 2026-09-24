@@ -1,24 +1,22 @@
-import { createHash, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
   getStudioPassword,
+  hasStudioSession,
   STUDIO_SESSION_COOKIE,
   sanitizeNextPath,
   signSessionToken,
 } from "@/lib/studio-auth";
+import {
+  changeStudioPassword,
+  verifyStudioPassword,
+} from "@/lib/studio-credentials";
 
 // Forms post here directly (no JS required): wrong password bounces back to
 // the login screen, success sets the signed session cookie and continues.
-async function passwordMatches(
-  provided: string,
-  expected: string,
-): Promise<boolean> {
-  // Compare digests so the comparison is length-independent.
-  const a = createHash("sha256").update(provided, "utf8").digest();
-  const b = createHash("sha256").update(expected, "utf8").digest();
-  return timingSafeEqual(a, b);
-}
+// Verification checks the author's active credential — the password stored
+// by the studio's change form when one exists, the STUDIO_PASSWORD default
+// otherwise (see lib/studio-credentials).
 
 function redirectTo(base: string, path: string): NextResponse {
   return NextResponse.redirect(new URL(path, base), 303);
@@ -35,6 +33,28 @@ export async function POST(request: Request) {
     return redirectTo(request.url, next);
   }
 
+  // Rotate the password — existing sessions only, so this can never be
+  // used to gain access, only to change credentials once signed in.
+  if (intent === "change-password") {
+    if (!(await hasStudioSession(request))) {
+      return NextResponse.json(
+        { error: "Sign in to change the password" },
+        { status: 401 },
+      );
+    }
+    const result = await changeStudioPassword(
+      String(form.get("currentPassword") ?? ""),
+      String(form.get("newPassword") ?? ""),
+    );
+    if (!result.ok) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: result.status },
+      );
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   const password = getStudioPassword();
   if (!password) {
     // Protection is not configured — send the visitor to the explanation.
@@ -42,7 +62,16 @@ export async function POST(request: Request) {
   }
 
   const provided = String(form.get("password") ?? "");
-  if (provided && (await passwordMatches(provided, password))) {
+  let valid = false;
+  try {
+    valid = provided ? await verifyStudioPassword(provided) : false;
+  } catch (error) {
+    // Store unreachable (GitHub hiccup, rate limit) — not "wrong password".
+    console.error("Password verification failed", error);
+    return redirectTo(request.url, "/studio-login?error=storage");
+  }
+
+  if (valid) {
     const token = await signSessionToken();
     if (token) {
       store.set(STUDIO_SESSION_COOKIE, token, {

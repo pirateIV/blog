@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Provider } from "react-redux";
-import { makeStore, AppStore } from "../lib/store";
+import { type AppStore, makeStore } from "../lib/store";
 
 export default function StoreProvider({
   children,
@@ -11,8 +11,6 @@ export default function StoreProvider({
 }) {
   // Create the store instance the first time this renders
   const [store] = useState<AppStore>(makeStore);
-
-  console.log(store)
 
   return <Provider store={store}>{children}</Provider>;
 }

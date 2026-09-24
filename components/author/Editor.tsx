@@ -220,7 +220,11 @@ export function Studio() {
                     />
                   )}
                 </span>
-                <span className="block text-[11px] text-neutral-500">
+                <span
+                  className="block text-[11px] text-neutral-500"
+                  // Relative timestamps tick between server and client render.
+                  suppressHydrationWarning
+                >
                   Edited {formatRelativeTime(d.updatedAt)}
                 </span>
               </button>

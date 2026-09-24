@@ -189,7 +189,11 @@ export function PublishPanel() {
           </p>
         )}
 
-        <p className="text-[11px] text-neutral-500">
+        <p
+          className="text-[11px] text-neutral-500"
+          // "Published just now" would otherwise mismatch the server render.
+          suppressHydrationWarning
+        >
           {draft.published && draft.publishedAt
             ? `Published ${formatRelativeTime(draft.publishedAt)} · updates rewrite the same file`
             : "Writes a .mdx file into content/"}

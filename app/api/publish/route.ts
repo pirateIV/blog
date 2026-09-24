@@ -4,6 +4,7 @@ import matter from "gray-matter";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { getPostFile, postExists } from "@/lib/post";
+import { isAuthorizedApi } from "@/lib/studio-auth";
 
 const CATEGORIES = ["travel", "lifestyle", "destination"] as const;
 // Lowercase letters and single dashes only — this is also what keeps
@@ -31,20 +32,11 @@ function badRequest(message: string) {
 
 // Dev-only publish endpoint: writes content/<category>-<slug>.mdx with the
 // frontmatter PostFrontmatter expects, then revalidates the routes that
-// list it. In production it refuses to run unless PUBLISH_TOKEN is set and
-// supplied in the `x-publish-token` header (pair it with
-// NEXT_PUBLIC_PUBLISH_TOKEN so the studio can send it).
+// list it. Access requires a studio session (login page), an x-publish-token
+// matching PUBLISH_TOKEN, or a dev server with neither secret configured.
 export async function POST(request: Request) {
-  const requiredToken = process.env.PUBLISH_TOKEN;
-  if (requiredToken) {
-    if (request.headers.get("x-publish-token") !== requiredToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  } else if (process.env.NODE_ENV === "production") {
-    return NextResponse.json(
-      { error: "Publishing requires PUBLISH_TOKEN to be configured" },
-      { status: 401 },
-    );
+  if (!(await isAuthorizedApi(request))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   let body: PublishBody;

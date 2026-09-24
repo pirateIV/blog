@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { useAppSelector, useAppDispatch } from "@/lib/hooks";
-import {
-  selectActiveDraft,
-  createBlankDraft,
-  hydrateDrafts,
-  DraftItem,
-} from "@/lib/features/slices/draft";
-import type { DraftSaveState, Draft, PostCategory } from "@/types";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { STORAGE_KEY } from "@/lib/draft";
+import {
+  createBlankDraft,
+  type DraftItem,
+  hydrateDrafts,
+  selectActiveDraft,
+} from "@/lib/features/slices/draft";
+import { useAppDispatch, useAppSelector } from "@/lib/hooks";
+import type { Draft, DraftSaveState, PostCategory } from "@/types";
 
 type PersistedState = {
   drafts: DraftItem[];
@@ -81,15 +81,12 @@ function sanitizeDraft(value: unknown): DraftItem | null {
   };
 }
 
-// Reads storage, returning null when it is missing or unusable (in which
-// case the caller starts from a template). Handles both today's
+// Parses a persisted payload (from localStorage or the server backup),
+// returning null when it is missing or unusable. Handles both today's
 // `{ drafts, activeDraftId }` payload and the pre-multi-draft shape that
 // stored one draft object directly, so existing work is migrated instead
 // of being thrown away.
-function readPersistedState(): PersistedState | null {
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) return null;
-
+function parsePersistedState(raw: string): PersistedState | null {
   try {
     const parsed = JSON.parse(raw) as unknown;
 
@@ -131,9 +128,56 @@ function readPersistedState(): PersistedState | null {
 
     throw new Error("Unrecognized draft payload");
   } catch (error) {
-    console.error("Discarding unreadable draft storage", error);
-    window.localStorage.removeItem(STORAGE_KEY);
+    console.error("Discarding unreadable draft payload", error);
     return null;
+  }
+}
+
+function readPersistedState(): PersistedState | null {
+  const raw = window.localStorage.getItem(STORAGE_KEY);
+  if (!raw) return null;
+
+  const state = parsePersistedState(raw);
+  if (!state) window.localStorage.removeItem(STORAGE_KEY);
+  return state;
+}
+
+// Server-side mirror of the drafts (written by /api/drafts). Only consulted
+// when localStorage is empty — a cleared browser, a new machine — so the
+// local copy always wins whenever it exists. Any failure (no backup yet,
+// offline, unauthorized) just means "start fresh from the fallback".
+async function fetchServerBackup(): Promise<PersistedState | null> {
+  try {
+    const response = await fetch("/api/drafts", {
+      headers: { accept: "application/json" },
+    });
+    if (!response.ok) return null;
+    return parsePersistedState(await response.text());
+  } catch {
+    return null;
+  }
+}
+
+// Fire-and-forget mirror of every localStorage write. localStorage remains
+// the source of truth for the save indicator; a failed backup logs a warning
+// but never blocks or errors the editor.
+function pushBackup(serialized: string): void {
+  try {
+    void fetch("/api/drafts", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: serialized,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          console.warn("Draft backup rejected by server", response.status);
+        }
+      })
+      .catch((error) => {
+        console.warn("Draft backup failed — local copy is safe", error);
+      });
+  } catch {
+    // fetch unavailable — nothing else to do.
   }
 }
 
@@ -148,7 +192,9 @@ function normalizeMarkdown(text: string): string {
 export function useDraftStorage() {
   const draft = useAppSelector(selectActiveDraft) ?? FALLBACK_DRAFT;
   const drafts = useAppSelector((state) => state.draftState.drafts);
-  const activeDraftId = useAppSelector((state) => state.draftState.activeDraftId);
+  const activeDraftId = useAppSelector(
+    (state) => state.draftState.activeDraftId,
+  );
   const dispatch = useAppDispatch();
 
   const hasLoadedRef = useRef(false);
@@ -163,24 +209,40 @@ export function useDraftStorage() {
 
   // 1. Initial Storage Hydration on Mount — restores the whole drafts
   // list (up to whatever was persisted), not just the active one.
+  // Order of preference: localStorage -> server backup (/api/drafts) ->
+  // first-run template. The server is only consulted when localStorage is
+  // empty, and hydration (and therefore every flush) waits for that answer
+  // so the seed can never overwrite a real backup.
   useEffect(() => {
-    const restored =
-      readPersistedState() ??
-      (() => {
-        const fresh = createBlankDraft(FIRST_RUN_TEMPLATE);
-        return { drafts: [fresh], activeDraftId: fresh.id };
-      })();
+    let cancelled = false;
 
-    // Refresh the ref here, not just on the next render: any flush that
-    // runs before React re-renders (StrictMode's immediate unmount pass)
-    // must see the restored data instead of the slice's placeholder.
-    stateRef.current = restored;
-    dispatch(hydrateDrafts(restored));
+    async function hydrate() {
+      const restored =
+        readPersistedState() ??
+        (await fetchServerBackup()) ??
+        (() => {
+          const fresh = createBlankDraft(FIRST_RUN_TEMPLATE);
+          return { drafts: [fresh], activeDraftId: fresh.id };
+        })();
 
-    lastSavedRef.current = JSON.stringify(restored);
-    setSaveState("saved");
-    hasLoadedRef.current = true;
-    setIsHydrated(true);
+      if (cancelled) return;
+
+      // Refresh the ref here, not just on the next render: any flush that
+      // runs before React re-renders (StrictMode's immediate unmount pass)
+      // must see the restored data instead of the slice's placeholder.
+      stateRef.current = restored;
+      dispatch(hydrateDrafts(restored));
+
+      lastSavedRef.current = JSON.stringify(restored);
+      setSaveState("saved");
+      hasLoadedRef.current = true;
+      setIsHydrated(true);
+    }
+
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
   }, [dispatch]);
 
   // 2. Persistent Save Functionality — saves the entire drafts list
@@ -197,6 +259,7 @@ export function useDraftStorage() {
       window.localStorage.setItem(STORAGE_KEY, serialized);
       lastSavedRef.current = serialized;
       setSaveState("saved");
+      pushBackup(serialized);
       return true;
     } catch (error) {
       console.error("Failed to save draft", error);
@@ -218,10 +281,27 @@ export function useDraftStorage() {
   // 4. Force Window Unload Synchronous Flushes
   useEffect(() => {
     function handleBeforeUnload(event: BeforeUnloadEvent) {
+      // Before hydration finishes there is nothing real to save — writing
+      // now would push the slice's placeholder over the server backup.
+      if (!hasLoadedRef.current) return;
+
       const saved = persistDraft(stateRef.current);
       if (!saved) {
         event.preventDefault();
         event.returnValue = true;
+        return;
+      }
+
+      // The regular PUT above may not survive the tab closing;
+      // sendBeacon is built for exactly this moment.
+      try {
+        const payload = JSON.stringify(stateRef.current);
+        navigator.sendBeacon?.(
+          "/api/drafts",
+          new Blob([payload], { type: "application/json" }),
+        );
+      } catch {
+        // Oversized or unsupported — the periodic autosave already ran.
       }
     }
 
@@ -254,6 +334,7 @@ export function useDraftStorage() {
   }, [persistDraft]);
 
   const handleSaveNow = useCallback(() => {
+    if (!hasLoadedRef.current) return;
     persistDraft(stateRef.current);
   }, [persistDraft]);
 
@@ -265,7 +346,9 @@ export function useDraftStorage() {
     if (!isHydrated || !lastSavedRef.current) return false;
 
     try {
-      const parsedLastSaved = JSON.parse(lastSavedRef.current) as PersistedState;
+      const parsedLastSaved = JSON.parse(
+        lastSavedRef.current,
+      ) as PersistedState;
 
       if (parsedLastSaved.activeDraftId !== activeDraftId) return true;
       if (parsedLastSaved.drafts.length !== drafts.length) return true;
@@ -279,7 +362,8 @@ export function useDraftStorage() {
           current.excerpt !== saved.excerpt ||
           current.published !== saved.published ||
           JSON.stringify(current.tags) !== JSON.stringify(saved.tags) ||
-          normalizeMarkdown(current.content) !== normalizeMarkdown(saved.content)
+          normalizeMarkdown(current.content) !==
+            normalizeMarkdown(saved.content)
         );
       });
     } catch {

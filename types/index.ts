@@ -28,6 +28,8 @@ export type Post = {
   image: string;
   postDate: Date;
   description: string;
+  /** Frontmatter tags; posts without any get []. */
+  tags?: string[];
 };
 
 export type Draft = {
@@ -39,4 +41,9 @@ export type Draft = {
   updatedAt: string;
 };
 
-export type DraftSaveState = "loading" | "saved" | "saving" | "error" | "unsaved";
+export type DraftSaveState =
+  | "loading"
+  | "saved"
+  | "saving"
+  | "error"
+  | "unsaved";

@@ -1,10 +1,11 @@
-import React from "react";
-import Link from "next/link";
+import { cva, type VariantProps } from "class-variance-authority";
 import Image from "next/image";
-import { cva, VariantProps } from "class-variance-authority";
+import Link from "next/link";
+import type React from "react";
+import type { Post } from "@/types";
 import { cx } from "@/utils/cx";
-import { Post } from "@/types";
 import DateCategory from "./date-category";
+import TagChips from "./tag-chips";
 
 const postCardVariants = cva(
   "group w-full flex gap-2.5 text-[10px] not-[p]:font-semibold",
@@ -19,7 +20,7 @@ const postCardVariants = cva(
     defaultVariants: {
       variant: "default",
     },
-  }
+  },
 );
 
 export interface PostCardProps
@@ -41,15 +42,15 @@ export default function PostCard({
     <div
       className={cx(
         postCardVariants({ variant, className }),
-        variant !== "sm" && "py-3.75"
+        variant !== "sm" && "py-3.75",
       )}
       {...props}
     >
       <div
         className={cx(
           "relative aspect-[1.2/1] shrink-0 overflow-hidden",
-          variant === "md" && "@2xl:aspect-[1.7/1] @2xl:w-62.5 h-full",
-          variant === "sm" && "size-25"
+          variant === "md" && "@2xl:aspect-[1.7/1] h-full @2xl:w-62.5",
+          variant === "sm" && "size-25",
         )}
       >
         <Image
@@ -58,12 +59,12 @@ export default function PostCard({
             variant === "default"
               ? "calc(min(314px,100vw))"
               : variant === "md"
-              ? "287.5px"
-              : "115px"
+                ? "287.5px"
+                : "115px"
           }
           className={cx(
-            "size-full object-cover scale-[115%]",
-            "transition-transform duration-500 group-hover:scale-100"
+            "size-full scale-[115%] object-cover",
+            "transition-transform duration-500 group-hover:scale-100",
           )}
           priority
           fill
@@ -73,7 +74,7 @@ export default function PostCard({
       <div
         className={cx(
           "flex flex-col gap-2.5",
-          variant === "md" && "@2xl:px-3.75 @2xl:py-5"
+          variant === "md" && "@2xl:px-3.75 @2xl:py-5",
         )}
       >
         <DateCategory
@@ -84,14 +85,17 @@ export default function PostCard({
         <Link
           href={`/blog/${blog.slug}`}
           className={cx(
-            "inline-block font-playfair-display underline hover:decoration-background-dark/50 text-lg/[1.2em]",
-            variant !== "sm" && "md:text-xl/[1.2em] lg:text-[22px]/[1.2em]"
+            "inline-block font-playfair-display text-lg/[1.2em] underline hover:decoration-background-dark/50",
+            variant !== "sm" && "md:text-xl/[1.2em] lg:text-[22px]/[1.2em]",
           )}
         >
           {blog.title}
         </Link>
         {variant !== "sm" && (
-          <p className="text-sm font-normal">{blog.description}</p>
+          <>
+            <p className="font-normal text-sm">{blog.description}</p>
+            <TagChips tags={blog.tags} />
+          </>
         )}
       </div>
     </div>

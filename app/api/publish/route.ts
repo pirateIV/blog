@@ -167,3 +167,58 @@ export async function POST(request: Request) {
     { status: willRename ? 200 : 201 },
   );
 }
+
+type DeleteBody = {
+  key?: unknown;
+};
+
+// Unpublish: removes content/<key>.mdx so the post leaves the public site.
+// The studio draft — and its publishedKey — is cleared separately by the
+// caller; republishing simply writes the file again.
+export async function DELETE(request: Request) {
+  if (!(await isAuthorizedApi(request))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let body: DeleteBody;
+  try {
+    body = await request.json();
+  } catch {
+    return badRequest("Invalid JSON body");
+  }
+
+  const key = typeof body.key === "string" ? body.key : "";
+  const separator = key.indexOf("-");
+  const category = separator > 0 ? key.slice(0, separator) : "";
+  const slug = separator > 0 ? key.slice(separator + 1) : "";
+
+  // Same shape as POST: category in front, slug behind — both must match
+  // the safe pattern, so "../" can never reach the filesystem.
+  if (
+    !SLUG_PATTERN.test(key) ||
+    !(CATEGORIES as readonly string[]).includes(category) ||
+    !SLUG_PATTERN.test(slug)
+  ) {
+    return badRequest("Unknown post key");
+  }
+  if (!postExists(key)) {
+    return NextResponse.json({ error: "Post does not exist" }, { status: 404 });
+  }
+
+  try {
+    fs.rmSync(getPostFile(key));
+  } catch (error) {
+    console.error("Failed to delete post", error);
+    return NextResponse.json(
+      { error: "Could not delete the post file" },
+      { status: 500 },
+    );
+  }
+
+  revalidatePath("/");
+  revalidatePath("/blog");
+  revalidatePath(`/blog/${slug}`);
+  revalidatePath(`/category/${category}`);
+
+  return NextResponse.json({ ok: true, key });
+}

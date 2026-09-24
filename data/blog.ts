@@ -27,6 +27,7 @@ function toCard({
     image: frontmatter.image,
     title: frontmatter.title,
     description: frontmatter.description,
+    tags: frontmatter.tags ?? [],
     postDate: new Date(frontmatter.date),
   };
 }

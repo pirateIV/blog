@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { PostCategory } from "@/types";
 
 export type DraftItem = {
@@ -36,7 +36,9 @@ export function makeDraftId(): string {
 // A brand-new, empty draft. `overrides` lets callers seed fields — used by
 // the "New draft" button (no overrides) and by localStorage migration when
 // upgrading the old single-draft payload.
-export function createBlankDraft(overrides: Partial<DraftItem> = {}): DraftItem {
+export function createBlankDraft(
+  overrides: Partial<DraftItem> = {},
+): DraftItem {
   return {
     id: makeDraftId(),
     title: "",
@@ -82,7 +84,10 @@ export const draftSlice = createSlice({
       state.activeDraftId = payload.id;
     },
 
-    deleteDraft: (state, { payload: { id } }: PayloadAction<{ id: string }>) => {
+    deleteDraft: (
+      state,
+      { payload: { id } }: PayloadAction<{ id: string }>,
+    ) => {
       const index = state.drafts.findIndex((draft) => draft.id === id);
       if (index === -1) return;
 
@@ -183,6 +188,16 @@ export const draftSlice = createSlice({
       touch(draft);
     },
 
+    // Unpublishing deletes the file, so the draft stops claiming one.
+    clearPublishInfo: (state) => {
+      const draft = getActiveDraft(state);
+      if (!draft) return;
+      draft.publishedKey = null;
+      draft.publishedAt = null;
+      draft.published = false;
+      touch(draft);
+    },
+
     // Upserts a whole draft in one shot — used when hydrating from
     // localStorage (or eventually a backend) on mount, and makes it
     // the active draft.
@@ -249,6 +264,7 @@ export const {
   setCategory,
   setImage,
   setPublishInfo,
+  clearPublishInfo,
   loadDraft,
   hydrateDrafts,
   resetDraft,
@@ -259,7 +275,9 @@ export const selectActiveDraft = (state: {
   draftState: DraftState;
 }): DraftItem | null => {
   const { draftState } = state;
-  return draftState.drafts.find((d) => d.id === draftState.activeDraftId) ?? null;
+  return (
+    draftState.drafts.find((d) => d.id === draftState.activeDraftId) ?? null
+  );
 };
 
 export default draftSlice.reducer;

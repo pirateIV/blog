@@ -1,13 +1,12 @@
-import React from "react";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { MDXRemote } from "next-mdx-remote/rsc";
-import { getAllPosts, getPostBySlug } from "@/lib/post";
-import { getMDXSlugKey } from "@/helpers/posts";
-import Divider from "@/components/layout/divider";
 import DateCategory from "@/components/date-category";
+import Divider from "@/components/layout/divider";
 import Sidebar from "@/components/layout/sidebar/sidebar";
 import RelatedPosts from "@/components/posts/related-posts";
+import TagChips from "@/components/tag-chips";
+import { getMDXSlugKey } from "@/helpers/posts";
+import { getAllPosts, getPostBySlug } from "@/lib/post";
 
 export async function generateMetadata({
   params,
@@ -52,16 +51,15 @@ export default async function Blog({
 
   const {
     content,
-    frontmatter: { title, description, category, image, date },
+    frontmatter: { title, description, category, date, tags },
   } = post;
 
   return (
-    <>
-      <div className="px-5 py-7.5 md:px-7 md:pb-10 lg:px-15 lg:pb-12.5">
-        <div className="w-full max-w-305 mx-auto">
-          {/* Hero Image */}
-          <div className="pb-12.5">
-            {/* <Image
+    <div className="px-5 py-7.5 md:px-7 md:pb-10 lg:px-15 lg:pb-12.5">
+      <div className="mx-auto w-full max-w-305">
+        {/* Hero Image */}
+        <div className="pb-12.5">
+          {/* <Image
               src={image}
               width={600}
               height={400}
@@ -69,38 +67,38 @@ export default async function Blog({
               priority
               alt={`Featured image for ${title}`}
             /> */}
-          </div>
-
-          <Divider />
-
-          {/* Main Content Area */}
-          <div className="relative lg:flex gap-12.5 py-12.5">
-            {/* Article Content */}
-            <div className="w-full min-h-screen space-y-5 lg:w-[70%]">
-              <article className="prose max-w-full text-sm">
-                {/* Article Header */}
-                <div className="space-y-2.5!">
-                  <DateCategory variant="md" category={category} date={date} />
-                  <h1 className="text-[40px] mt-0!">{title}</h1>
-                  <p className="mt-0!">{description}</p>
-                  <Divider />
-                </div>
-
-                {/* Article Body */}
-                <MDXRemote source={content} />
-              </article>
-            </div>
-
-            {/* Sidebar */}
-            <Sidebar />
-          </div>
-
-          <Divider />
-
-          {/* Related Posts */}
-          <RelatedPosts slug={slug} category={category} />
         </div>
+
+        <Divider />
+
+        {/* Main Content Area */}
+        <div className="relative gap-12.5 py-12.5 lg:flex">
+          {/* Article Content */}
+          <div className="min-h-screen w-full space-y-5 lg:w-[70%]">
+            <article className="prose max-w-full text-sm">
+              {/* Article Header */}
+              <div className="space-y-2.5!">
+                <DateCategory variant="md" category={category} date={date} />
+                <h1 className="mt-0! text-[40px]">{title}</h1>
+                <p className="mt-0!">{description}</p>
+                <TagChips tags={tags} />
+                <Divider />
+              </div>
+
+              {/* Article Body */}
+              <MDXRemote source={content} />
+            </article>
+          </div>
+
+          {/* Sidebar */}
+          <Sidebar />
+        </div>
+
+        <Divider />
+
+        {/* Related Posts */}
+        <RelatedPosts slug={slug} category={category} />
       </div>
-    </>
+    </div>
   );
 }

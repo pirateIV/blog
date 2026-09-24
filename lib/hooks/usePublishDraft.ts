@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import {
+  clearPublishInfo,
   selectActiveDraft,
   setPublishInfo,
   setSlug,
@@ -9,7 +10,12 @@ import {
 import { useAppDispatch, useAppSelector } from "@/lib/hooks";
 import { slugify } from "@/lib/utils";
 
-type PublishStatus = "idle" | "publishing" | "success" | "error";
+type PublishStatus =
+  | "idle"
+  | "publishing"
+  | "unpublishing"
+  | "success"
+  | "error";
 
 export function usePublishDraft() {
   const dispatch = useAppDispatch();
@@ -109,11 +115,52 @@ export function usePublishDraft() {
     }
   }, [draft, dispatch]);
 
+  // Removes the published file; the studio draft itself stays untouched.
+  const unpublish = useCallback(async () => {
+    const key = draft?.publishedKey;
+    if (!key) return;
+
+    setStatus("unpublishing");
+    setMessage(null);
+    setUrl(null);
+
+    const token = process.env.NEXT_PUBLIC_PUBLISH_TOKEN;
+
+    try {
+      const response = await fetch("/api/publish", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "x-publish-token": token } : {}),
+        },
+        body: JSON.stringify({ key }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+
+      if (!response.ok) {
+        setStatus("error");
+        setMessage(data.error ?? "Unpublishing failed");
+        return;
+      }
+
+      dispatch(clearPublishInfo());
+      setStatus("success");
+      setMessage("Post unpublished — the draft is kept");
+    } catch (error) {
+      console.error("Unpublish failed", error);
+      setStatus("error");
+      setMessage("Could not reach /api/publish");
+    }
+  }, [draft, dispatch]);
+
   const reset = useCallback(() => {
     setStatus("idle");
     setMessage(null);
     setUrl(null);
   }, []);
 
-  return { publish, reset, status, message, url };
+  return { publish, unpublish, reset, status, message, url };
 }

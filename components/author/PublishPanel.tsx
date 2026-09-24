@@ -28,10 +28,11 @@ function Label({ children }: { children: ReactNode }) {
 export function PublishPanel() {
   const dispatch = useAppDispatch();
   const draft = useAppSelector(selectActiveDraft);
-  const { publish, unpublish, status, message, url } = usePublishDraft();
+  const { publish, unpublish, status, message, url, note } = usePublishDraft();
   const [tagInput, setTagInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadNote, setUploadNote] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!draft) return null;
@@ -66,6 +67,7 @@ export function PublishPanel() {
   async function uploadCover(file: File) {
     setUploading(true);
     setUploadError(null);
+    setUploadNote(null);
     try {
       const form = new FormData();
       form.append("file", file);
@@ -76,12 +78,18 @@ export function PublishPanel() {
       const data = (await response.json().catch(() => ({}))) as {
         error?: string;
         url?: string;
+        storage?: string;
       };
       if (!response.ok || !data.url) {
         setUploadError(data.error ?? "Upload failed");
         return;
       }
       dispatch(setImage(data.url));
+      setUploadNote(
+        data.storage === "github"
+          ? "Committed to the repo — the image appears once the site redeploys (~1 min)."
+          : null,
+      );
     } catch {
       setUploadError("Could not reach /api/upload");
     } finally {
@@ -174,6 +182,9 @@ export function PublishPanel() {
           )}
         </div>
         {uploadError && <p className="text-red-500 text-xs">{uploadError}</p>}
+        {uploadNote && !uploadError && (
+          <p className="text-neutral-500 text-xs">{uploadNote}</p>
+        )}
         <span className="text-[11px] text-neutral-500">
           Paste a URL or upload a JPG, PNG, WebP, GIF or AVIF up to 5MB. Leave
           empty to use the category default.
@@ -266,6 +277,10 @@ export function PublishPanel() {
               </Link>
             )}
           </p>
+        )}
+
+        {status === "success" && note && (
+          <p className="text-neutral-500 text-xs">{note}</p>
         )}
 
         <p

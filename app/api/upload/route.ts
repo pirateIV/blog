@@ -1,7 +1,11 @@
 import { randomBytes } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
-import path from "node:path";
 import { NextResponse } from "next/server";
+import {
+  getStorageMode,
+  storageErrorResponse,
+  unavailableReason,
+  writeFile,
+} from "@/lib/content-store";
 import { isAuthorizedApi } from "@/lib/studio-auth";
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -14,11 +18,18 @@ const ACCEPTED_TYPES: Record<string, string> = {
   "image/avif": "avif",
 };
 
-// Cover-image upload for the publish panel: writes the file into
-// public/images/uploads/ under a generated name and returns its public URL.
+// Cover-image upload for the publish panel: stores the file under
+// public/images/uploads/ with a generated name and returns its public URL.
+// The bytes go through lib/content-store — filesystem in dev, a GitHub
+// commit (followed by a redeploy) on an immutable host like Vercel.
 export async function POST(request: Request) {
   if (!(await isAuthorizedApi(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const storage = getStorageMode();
+  if (storage === "unavailable") {
+    return NextResponse.json({ error: unavailableReason() }, { status: 503 });
   }
 
   let form: FormData;
@@ -64,24 +75,19 @@ export async function POST(request: Request) {
       .replace(/^-+|-+$/g, "")
       .slice(0, 40) || "cover";
   const name = `${base}-${randomBytes(4).toString("hex")}.${extension}`;
-  const directory = path.join(process.cwd(), "public", "images", "uploads");
 
   try {
-    mkdirSync(directory, { recursive: true });
-    writeFileSync(
-      path.join(directory, name),
+    await writeFile(
+      `public/images/uploads/${name}`,
       Buffer.from(await file.arrayBuffer()),
+      `upload: images/uploads/${name}`,
     );
   } catch (error) {
-    console.error("Failed to save upload", error);
-    return NextResponse.json(
-      { error: "Could not save the image" },
-      { status: 500 },
-    );
+    return storageErrorResponse(error, "Upload storage failed");
   }
 
   return NextResponse.json(
-    { ok: true, url: `/images/uploads/${name}` },
+    { ok: true, url: `/images/uploads/${name}`, storage },
     { status: 201 },
   );
 }

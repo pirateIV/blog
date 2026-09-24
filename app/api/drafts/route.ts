@@ -14,6 +14,11 @@ const BACKUP_DIR = path.join(process.cwd(), ".studio");
 const BACKUP_FILE = path.join(BACKUP_DIR, "drafts.json");
 const MAX_BYTES = 2_000_000; // drafts are small; anything bigger is wrong
 
+// Set after the first failed save: on a read-only host (Vercel's runtime)
+// retrying every autosave only adds log noise. localStorage stays the
+// working copy either way — this backup is strictly best-effort.
+let backupUnavailable = false;
+
 async function authorize(request: Request): Promise<NextResponse | null> {
   if (await isAuthorizedApi(request)) return null;
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -77,6 +82,13 @@ async function saveBackup(request: Request): Promise<NextResponse> {
     );
   }
 
+  if (backupUnavailable) {
+    return NextResponse.json({
+      ok: false,
+      reason: "Server backup unavailable on this host",
+    });
+  }
+
   try {
     await fs.promises.mkdir(BACKUP_DIR, { recursive: true });
     // Write to a temp file first so a crash mid-save can't truncate the
@@ -85,10 +97,17 @@ async function saveBackup(request: Request): Promise<NextResponse> {
     await fs.promises.writeFile(temp, JSON.stringify(parsed, null, 2), "utf8");
     await fs.promises.rename(temp, BACKUP_FILE);
   } catch (error) {
-    console.error("Draft backup failed", error);
+    backupUnavailable = true;
+    console.error(
+      "Draft backup failed — disabling server backup for this instance (read-only filesystem?)",
+      error,
+    );
     return NextResponse.json(
-      { error: "Could not write backup" },
-      { status: 500 },
+      {
+        ok: false,
+        reason: "Server backup unavailable (read-only filesystem?)",
+      },
+      { status: 503 },
     );
   }
 

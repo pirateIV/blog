@@ -23,6 +23,9 @@ export function usePublishDraft() {
   const [status, setStatus] = useState<PublishStatus>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [url, setUrl] = useState<string | null>(null);
+  // Set when storage is GitHub: the commit triggers a redeploy, so the
+  // public site lags the studio by about a minute.
+  const [note, setNote] = useState<string | null>(null);
 
   const publish = useCallback(async () => {
     if (!draft) return;
@@ -56,19 +59,16 @@ export function usePublishDraft() {
     setStatus("publishing");
     setMessage(null);
     setUrl(null);
+    setNote(null);
 
     // key is "<category>-<slug>", so the previous slug is everything after
     // the first segment — used only to revalidate the old URL on rename.
     const previousSlug = draft.publishedKey?.replace(/^[a-z]+-/, "") ?? null;
-    const token = process.env.NEXT_PUBLIC_PUBLISH_TOKEN;
 
     try {
       const response = await fetch("/api/publish", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "x-publish-token": token } : {}),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
           description,
@@ -87,6 +87,7 @@ export function usePublishDraft() {
         key?: string;
         slug?: string;
         url?: string;
+        storage?: string;
       };
 
       if (!response.ok || !data.key || !data.slug) {
@@ -108,6 +109,11 @@ export function usePublishDraft() {
       setStatus("success");
       setMessage(draft.published ? "Post updated" : "Post published");
       setUrl(data.url ?? `/blog/${data.slug}`);
+      setNote(
+        data.storage === "github"
+          ? "Committed to GitHub — Vercel redeploys automatically and the change goes live in about a minute."
+          : null,
+      );
     } catch (error) {
       console.error("Publish failed", error);
       setStatus("error");
@@ -123,21 +129,18 @@ export function usePublishDraft() {
     setStatus("unpublishing");
     setMessage(null);
     setUrl(null);
-
-    const token = process.env.NEXT_PUBLIC_PUBLISH_TOKEN;
+    setNote(null);
 
     try {
       const response = await fetch("/api/publish", {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "x-publish-token": token } : {}),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key }),
       });
 
       const data = (await response.json().catch(() => ({}))) as {
         error?: string;
+        storage?: string;
       };
 
       if (!response.ok) {
@@ -149,6 +152,11 @@ export function usePublishDraft() {
       dispatch(clearPublishInfo());
       setStatus("success");
       setMessage("Post unpublished — the draft is kept");
+      setNote(
+        data.storage === "github"
+          ? "Committed the removal — the post leaves the public site after the next deploy."
+          : null,
+      );
     } catch (error) {
       console.error("Unpublish failed", error);
       setStatus("error");
@@ -160,7 +168,8 @@ export function usePublishDraft() {
     setStatus("idle");
     setMessage(null);
     setUrl(null);
+    setNote(null);
   }, []);
 
-  return { publish, unpublish, reset, status, message, url };
+  return { publish, unpublish, reset, status, message, url, note };
 }

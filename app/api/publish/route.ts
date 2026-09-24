@@ -1,9 +1,14 @@
-import fs from "node:fs";
-import path from "node:path";
 import matter from "gray-matter";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
-import { getPostFile, postExists } from "@/lib/post";
+import {
+  deleteFile,
+  getStorageMode,
+  readFile,
+  storageErrorResponse,
+  unavailableReason,
+  writeFile,
+} from "@/lib/content-store";
 import { isAuthorizedApi } from "@/lib/studio-auth";
 
 const CATEGORIES = ["travel", "lifestyle", "destination"] as const;
@@ -30,13 +35,21 @@ function badRequest(message: string) {
   return NextResponse.json({ error: message }, { status: 400 });
 }
 
-// Dev-only publish endpoint: writes content/<category>-<slug>.mdx with the
+// Publish endpoint: writes content/<category>-<slug>.mdx with the
 // frontmatter PostFrontmatter expects, then revalidates the routes that
-// list it. Access requires a studio session (login page), an x-publish-token
+// list it. The write goes through lib/content-store — straight to the
+// filesystem in development, or as a GitHub commit on an immutable host
+// (Vercel), which triggers the redeploy that makes the post public.
+// Access requires a studio session (login page), an x-publish-token
 // matching PUBLISH_TOKEN, or a dev server with neither secret configured.
 export async function POST(request: Request) {
   if (!(await isAuthorizedApi(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const storage = getStorageMode();
+  if (storage === "unavailable") {
+    return NextResponse.json({ error: unavailableReason() }, { status: 503 });
   }
 
   let body: PublishBody;
@@ -92,66 +105,64 @@ export async function POST(request: Request) {
   }
 
   const key = `${category}-${slug}`;
-  const file = getPostFile(key);
   const willRename = Boolean(previousKey && previousKey !== key);
   const ownsTarget = previousKey === key;
-
-  // The target URL is taken by a *different* post (first publish colliding,
-  // or a rename onto an existing slug) — require an explicit overwrite.
-  if (postExists(key) && !ownsTarget && !overwrite) {
-    return NextResponse.json(
-      { error: `A post already uses /blog/${slug}` },
-      { status: 409 },
-    );
-  }
-
-  // Keep the original publish date across updates — including renames, where
-  // the date lives in the file we're moving away from. Only first publishes
-  // stamp today.
-  let date = new Date().toISOString().slice(0, 10);
-  const dateSource = postExists(key)
-    ? file
-    : previousKey && postExists(previousKey)
-      ? getPostFile(previousKey)
-      : null;
-  if (dateSource) {
-    const existing = matter(fs.readFileSync(dateSource, "utf-8"));
-    if (typeof existing.data.date === "string") date = existing.data.date;
-  }
-
-  const frontmatter = {
-    title,
-    slug,
-    date,
-    category,
-    image: image || `/images/${category}.jpg`,
-    description,
-    ...(tags.length ? { tags } : {}),
-  };
+  const targetPath = `content/${key}.mdx`;
 
   try {
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(
-      file,
-      matter.stringify(`\n${content}\n`, frontmatter),
-      "utf-8",
-    );
-  } catch (error) {
-    console.error("Failed to write post", error);
-    return NextResponse.json(
-      { error: "Could not write the post file" },
-      { status: 500 },
-    );
-  }
+    const existing = await readFile(targetPath);
 
-  // Renaming: drop the file that used to hold this draft. The write above
-  // already succeeded, so a failure here must not fail the whole publish.
-  if (willRename && previousKey && postExists(previousKey)) {
-    try {
-      fs.rmSync(getPostFile(previousKey));
-    } catch (error) {
-      console.error("Could not remove previous post file", error);
+    // The target URL is taken by a *different* post (first publish colliding,
+    // or a rename onto an existing slug) — require an explicit overwrite.
+    if (existing && !ownsTarget && !overwrite) {
+      return NextResponse.json(
+        { error: `A post already uses /blog/${slug}` },
+        { status: 409 },
+      );
     }
+
+    // Keep the original publish date across updates — including renames,
+    // where the date lives in the file we're moving away from. Only first
+    // publishes stamp today.
+    let date = new Date().toISOString().slice(0, 10);
+    const dateSource =
+      existing ??
+      (previousKey ? await readFile(`content/${previousKey}.mdx`) : null);
+    if (dateSource) {
+      const parsed = matter(dateSource.contents);
+      if (typeof parsed.data.date === "string") date = parsed.data.date;
+    }
+
+    const frontmatter = {
+      title,
+      slug,
+      date,
+      category,
+      image: image || `/images/${category}.jpg`,
+      description,
+      ...(tags.length ? { tags } : {}),
+    };
+
+    await writeFile(
+      targetPath,
+      matter.stringify(`\n${content}\n`, frontmatter),
+      `${existing ? "update" : "publish"}: ${key}`,
+    );
+
+    // Renaming: drop the file that used to hold this draft. The write above
+    // already succeeded, so a failure here must not fail the whole publish.
+    if (willRename && previousKey) {
+      const previousPath = `content/${previousKey}.mdx`;
+      try {
+        if (await readFile(previousPath)) {
+          await deleteFile(previousPath, `unpublish (renamed): ${previousKey}`);
+        }
+      } catch (error) {
+        console.error("Could not remove previous post file", error);
+      }
+    }
+  } catch (error) {
+    return storageErrorResponse(error, "Publish storage failed");
   }
 
   revalidatePath("/");
@@ -163,7 +174,7 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json(
-    { ok: true, key, slug, url: `/blog/${slug}` },
+    { ok: true, key, slug, url: `/blog/${slug}`, storage },
     { status: willRename ? 200 : 201 },
   );
 }
@@ -180,6 +191,11 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const storage = getStorageMode();
+  if (storage === "unavailable") {
+    return NextResponse.json({ error: unavailableReason() }, { status: 503 });
+  }
+
   let body: DeleteBody;
   try {
     body = await request.json();
@@ -193,7 +209,7 @@ export async function DELETE(request: Request) {
   const slug = separator > 0 ? key.slice(separator + 1) : "";
 
   // Same shape as POST: category in front, slug behind — both must match
-  // the safe pattern, so "../" can never reach the filesystem.
+  // the safe pattern, so "../" can never reach the filesystem or repo.
   if (
     !SLUG_PATTERN.test(key) ||
     !(CATEGORIES as readonly string[]).includes(category) ||
@@ -201,18 +217,18 @@ export async function DELETE(request: Request) {
   ) {
     return badRequest("Unknown post key");
   }
-  if (!postExists(key)) {
-    return NextResponse.json({ error: "Post does not exist" }, { status: 404 });
-  }
 
   try {
-    fs.rmSync(getPostFile(key));
+    const filePath = `content/${key}.mdx`;
+    if (!(await readFile(filePath))) {
+      return NextResponse.json(
+        { error: "Post does not exist" },
+        { status: 404 },
+      );
+    }
+    await deleteFile(filePath, `unpublish: ${key}`);
   } catch (error) {
-    console.error("Failed to delete post", error);
-    return NextResponse.json(
-      { error: "Could not delete the post file" },
-      { status: 500 },
-    );
+    return storageErrorResponse(error, "Unpublish storage failed");
   }
 
   revalidatePath("/");
@@ -220,5 +236,5 @@ export async function DELETE(request: Request) {
   revalidatePath(`/blog/${slug}`);
   revalidatePath(`/category/${category}`);
 
-  return NextResponse.json({ ok: true, key });
+  return NextResponse.json({ ok: true, key, storage });
 }

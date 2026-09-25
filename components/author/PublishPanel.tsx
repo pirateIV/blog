@@ -149,7 +149,7 @@ export function PublishPanel() {
         <Input
           aria-label="Cover image"
           value={draft.image}
-          placeholder={`/images/${draft.category}.jpg`}
+          placeholder="https://..."
           onChange={(e) => dispatch(setImage(e.target.value))}
         />
         <input

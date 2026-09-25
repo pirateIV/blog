@@ -1,10 +1,11 @@
-import React from "react";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import Divider from "@/components/layout/divider";
-import { getBlogData, descriptions } from "@/data/blog";
-import PostCard from "@/components/post-card";
 import Sidebar from "@/components/layout/sidebar/sidebar";
+import PostCard from "@/components/post-card";
+import { descriptions, getBlogData } from "@/data/blog";
+import { DEFAULT_COVERS } from "@/lib/default-covers";
+import type { PostCategory } from "@/types";
 
 interface PageProps {
   params: Promise<{ category: string }>;
@@ -23,24 +24,24 @@ export default async function BlogCategoryPage({ params }: PageProps) {
 
   return (
     <div className="flex items-center justify-center px-7 lg:px-15">
-      <div className="max-w-305 w-full">
+      <div className="w-full max-w-305">
         {/* Category Header Section */}
-        <div className="flex items-center gap-7.5 py-12.5 lg:gap-12.5 max-md:flex-col">
+        <div className="flex items-center gap-7.5 py-12.5 max-md:flex-col lg:gap-12.5">
           <div className="space-y-2.5">
-            <h1 className="capitalize font-playfair-display text-[40px] font-semibold">
+            <h1 className="font-playfair-display font-semibold text-[40px] capitalize">
               {category}
             </h1>
             <p className="text-lg">{description}</p>
           </div>
 
           {/* Category Image */}
-          <div className="size-full overflow-hidden md:w-[30%] shrink-0">
+          <div className="size-full shrink-0 overflow-hidden md:w-[30%]">
             <Image
-              src={`/images/${category}.jpg`}
+              src={DEFAULT_COVERS[category as PostCategory]}
               width="366"
               height="203"
               sizes="(min-width: 1200px) max(min(max(100vw - 120px, 1px), 1220px) * 0.3, 1px), (max-width: 809.98px) max(min(max(100vw - 40px, 1px), 1220px), 1px), (min-width: 810px) and (max-width: 1199.98px) max(min(max(100vw - 56px, 1px), 1220px) * 0.3, 1px)"
-              className="size-full aspect-366/203 object-cover border border-background-dark/30"
+              className="aspect-366/203 size-full border border-background-dark/30 object-cover"
               alt={`${category} category image`}
               priority
             />
@@ -48,18 +49,18 @@ export default async function BlogCategoryPage({ params }: PageProps) {
         </div>
 
         {/* Main Content Section */}
-        <div className="relative space-y-5 py-12.5 w-full">
+        <div className="relative w-full space-y-5 py-12.5">
           <Divider />
 
-          <div className="relative lg:flex gap-12.5">
+          <div className="relative gap-12.5 lg:flex">
             {/* Posts List */}
-            <div className="w-full min-h-screen space-y-5 lg:w-[70%]">
+            <div className="min-h-screen w-full space-y-5 lg:w-[70%]">
               {/* Section Header */}
               <div className="flex flex-col-reverse">
-                <h2 className="text-[34px]/[1.2em] font-semibold font-playfair-display">
+                <h2 className="font-playfair-display font-semibold text-[34px]/[1.2em]">
                   Recent Posts
                 </h2>
-                <p className="text-sm font-medium text-accent-orange">
+                <p className="font-medium text-accent-orange text-sm">
                   Stay up-to-date
                 </p>
               </div>

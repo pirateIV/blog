@@ -9,6 +9,7 @@ import {
   unavailableReason,
   writeFile,
 } from "@/lib/content-store";
+import { DEFAULT_COVERS } from "@/lib/default-covers";
 import { isAuthorizedApi } from "@/lib/studio-auth";
 
 const CATEGORIES = ["travel", "lifestyle", "destination"] as const;
@@ -138,7 +139,10 @@ export async function POST(request: Request) {
       slug,
       date,
       category,
-      image: image || `/images/${category}.jpg`,
+      // Blank cover: fall back to a known-good default. The old
+      // `/images/${category}.jpg` path never existed on disk or in /public,
+      // so it silently published posts with a broken image.
+      image: image || DEFAULT_COVERS[category],
       description,
       ...(tags.length ? { tags } : {}),
     };

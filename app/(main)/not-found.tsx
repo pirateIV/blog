@@ -1,5 +1,4 @@
-import React from "react";
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import Image from "next/image";
 import ButtonLink from "@/components/button-link";
 
@@ -12,11 +11,11 @@ export default function NotFound() {
   return (
     <div className="flex flex-col items-center justify-center gap-y-7.5">
       <Image
-        src="/images/404.avif"
+        src="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80"
         width="800"
         height="600"
         sizes="800px"
-        alt="404 image illustration"
+        alt="A road leading off into the mountains"
       />
       <h3 className="text-[40px]">Something's wrong here</h3>
       <p>

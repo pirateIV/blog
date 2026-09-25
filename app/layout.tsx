@@ -48,7 +48,7 @@ export const metadata: Metadata = {
     types: { "application/rss+xml": "/feed.xml" },
   },
   icons: {
-    icon: "/images/favicon.png",
+    icon: "/favicon.ico",
   },
 };
 

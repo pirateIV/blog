@@ -5,7 +5,13 @@ const nextConfig: NextConfig = {
   // Configure `pageExtensions` to include markdown and MDX files
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   images: {
-    remotePatterns: [new URL("https://images.unsplash.com/**")],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        pathname: "/**",
+      },
+    ],
   },
   async redirects() {
     // The studio moved: keep old /author links (bookmarks, history) working.

@@ -1,20 +1,18 @@
-import Link from "next/link";
 import Image from "next/image";
-
-import { cx } from "@/utils/cx";
+import Link from "next/link";
+import ButtonLink from "@/components/button-link";
+import DateCategory from "@/components/date-category";
+import RecentPosts from "@/components/posts/recent-posts";
 import { getBlogs } from "@/data/blog";
 import { getCategory } from "@/helpers/posts";
 import { getStories } from "@/utils/blog-posts-filter";
-import RecentPosts from "@/components/posts/recent-posts";
-import ButtonLink from "@/components/button-link";
-import DateCategory from "@/components/date-category";
+import { cx } from "@/utils/cx";
 
 export default function Home() {
   const posts = getStories(getBlogs(), { limit: 6 });
   return (
-    <div className="max-w-305 mx-auto @container">
-      {/* <PostsSection data={posts} /> */}
-      <div className="grid grid-cols-4 gap-5">
+    <div className="@container mx-auto max-w-305 px-5 pt-7.5 pb-15 md:px-7 md:pt-10 md:pb-20 lg:px-15 lg:pt-12.5 lg:pb-25">
+      <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
         {posts.map((post) => (
           <div
             key={post.slug}
@@ -36,7 +34,7 @@ export default function Home() {
             <Link
               href={`/blog/${post.slug}`}
               className={cx(
-                "mt-2 inline-block font-semibold font-playfair-display hover:underline hover:decoration-background-dark/50 text-lg/[1.2em]md:text-xl/[1.2em] lg:text-[22px]/[1.2em]"
+                "mt-2 inline-block font-playfair-display font-semibold text-lg/[1.2em] hover:underline hover:decoration-background-dark/50 md:text-xl/[1.2em] lg:text-[22px]/[1.2em]",
               )}
             >
               {post.title}

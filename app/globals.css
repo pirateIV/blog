@@ -165,7 +165,7 @@ blockquote {
   --crepe-color-hover: #232323;
   --crepe-color-selected: #2f2f2f;
   --crepe-color-inline-area: #2b2b2b;
- 
+
   --crepe-shadow-1:
     0px 1px 2px 0px rgba(255, 255, 255, 0.3),
     0px 1px 3px 1px rgba(255, 255, 255, 0.15);
@@ -190,4 +190,13 @@ blockquote {
   .milkdown .ProseMirror {
     padding: 10px 60px !important;
   }
+}
+
+/* The footer newsletter is a conversion CTA — not something to show on a
+   404. The footer renders on every route and the App Router never exposes
+   a "/404" pathname, so the 404 content flags itself ([data-not-found])
+   and :has() links it to the newsletter ([data-newsletter]) with no client
+   JS. Browsers without :has() just show the newsletter. */
+body:has([data-not-found]) [data-newsletter] {
+  display: none;
 }

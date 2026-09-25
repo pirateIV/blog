@@ -9,7 +9,10 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
-    <div className="flex flex-col items-center justify-center gap-y-7.5">
+    <div
+      data-not-found
+      className="flex flex-col items-center justify-center gap-y-7.5"
+    >
       <Image
         src="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80"
         width="800"

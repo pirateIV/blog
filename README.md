@@ -57,6 +57,15 @@ write backend depends on where the app runs:
   on Vercel the studio falls back to browser `localStorage`, which is
   where drafts are restored from anyway.
 
+## Newsletter subscribers
+
+The footer's newsletter form posts to `/api/subscribe`, which appends the
+address to `.studio/subscribers.json` through the same storage as above
+(files in dev, a GitHub commit on Vercel). Read the list from that file —
+`.studio/` is gitignored locally, but **on GitHub-backed storage the list
+is committed to the repository**, so keep the repo private if the
+addresses must not be public.
+
 ## Studio password
 
 Login accepts the **active** studio password:

@@ -7,6 +7,7 @@ import RelatedPosts from "@/components/posts/related-posts";
 import TagChips from "@/components/tag-chips";
 import { getMDXSlugKey } from "@/helpers/posts";
 import { getAllPosts, getPostBySlug } from "@/lib/post";
+import Image from "next/image";
 
 export async function generateMetadata({
   params,
@@ -51,7 +52,7 @@ export default async function Blog({
 
   const {
     content,
-    frontmatter: { title, description, category, date, tags },
+    frontmatter: { title, description, category, date, tags, image },
   } = post;
 
   return (
@@ -59,14 +60,14 @@ export default async function Blog({
       <div className="mx-auto w-full max-w-305">
         {/* Hero Image */}
         <div className="pb-12.5">
-          {/* <Image
+          <Image
               src={image}
               width={600}
               height={400}
               className="w-full object-cover aspect-2/1"
               priority
               alt={`Featured image for ${title}`}
-            /> */}
+            />
         </div>
 
         <Divider />
